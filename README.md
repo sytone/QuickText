@@ -1,6 +1,6 @@
 # QuickText 📝💎
 
-[![Framework](https://img.shields.io/badge/.NET-9.0--windows-purple.svg?style=flat-square)](https://dotnet.microsoft.com/)
+[![Framework](https://img.shields.io/badge/.NET-10.0--windows-purple.svg?style=flat-square)](https://dotnet.microsoft.com/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-blue.svg?style=flat-square)](https://www.microsoft.com/windows)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Style](https://img.shields.io/badge/Design-Glassmorphism-988BF0.svg?style=flat-square)](https://github.com/BlazeR-28/QuickText)
@@ -100,7 +100,7 @@ QuickText operates completely offline and saves all settings and notes locally i
 
 ### Prerequisites
 * Windows 10 or 11 (64-bit)
-* [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+* [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 * Microsoft Edge WebView2 Runtime (Pre-installed on modern Windows)
 
 ### Build Standalone Executable
@@ -111,7 +111,7 @@ dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile
 ```
 
 The compiled standalone executable will be located at:
-`bin/Release/net9.0-windows/win-x64/publish/QuickText.exe`
+`bin/Release/net10.0-windows/win-x64/publish/QuickText.exe`
 
 ---
 

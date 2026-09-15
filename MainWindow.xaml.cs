@@ -163,7 +163,7 @@ public partial class MainWindow : Window
                 // Check for GWL_EXSTYLE (-20 or 4294967276)
                 if (wp == -20 || wp == 4294967276)
                 {
-                    STYLESTRUCT ss = (STYLESTRUCT)Marshal.PtrToStructure(lParam, typeof(STYLESTRUCT));
+                    STYLESTRUCT ss = Marshal.PtrToStructure<STYLESTRUCT>(lParam);
                     ss.styleNew |= (uint)WS_EX_LAYERED;
                     Marshal.StructureToPtr(ss, lParam, false);
                     handled = true;
