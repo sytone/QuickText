@@ -35,6 +35,7 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 * **Win32 Layered Window Opacity:** Window transparency is handled natively via Win32 `SetLayeredWindowAttributes` by bypassing WPF's restrictive `AllowsTransparency="True"` mode (which conflicts with WebView2 input capture).
 * **Always-On-Top:** Native WPF topmost configuration keeps the scratchpad visible over other applications.
 * **Borderless Dragging:** Smooth window repositioning by clicking and dragging anywhere on the frosted background title bar.
+* **Collapsible Scratchpad:** Double-click the title bar background to collapse the window to just its toolbar; double-click again to restore the editor without losing text. Clear, Copy, and Close remain available while collapsed; Settings expands the window to show its panel. The collapsed bar stays draggable and temporarily bypasses the minimum editor height.
 * **Customizable Window Size Limits:** Automatically grows and shrinks the window height to match note length, bounded by user-defined minimum/maximum height and fixed width limits configured in the Settings panel via a clean 2x2 grid layout.
 * **System-wide Visibility Toggle:** Register a global hotkey to show or hide the scratchpad instantly from anywhere in Windows.
 
