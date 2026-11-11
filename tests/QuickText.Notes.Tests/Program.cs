@@ -2,8 +2,10 @@ using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Xml.Linq;
 using QuickText;
 
 internal static class Program
@@ -17,9 +19,14 @@ internal static class Program
         File.WriteAllText(Path.Combine(directory, "notes.txt"), "# Legacy backup");
         // Avoid registering a real global shortcut when layout creates a native handle.
         File.WriteAllText(Path.Combine(directory, "settings.json"), "{\"globalHotkey\":\"\"}");
-        App app = new();
-        app.InitializeComponent();
-        app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
+        // Use the real resources without starting the production mutex/tray application.
+        Application app = new() { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XDocument source = XDocument.Load(Path.Combine(AppContext.BaseDirectory, "App.resources.xaml"));
+        XElement resources = new(presentation + "ResourceDictionary",
+            new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
+            source.Root!.Element(presentation + "Application.Resources")!.Elements());
+        app.Resources = (ResourceDictionary)XamlReader.Parse(resources.ToString());
         try
         {
             MainWindow window = new() { Left = 0, Top = 0 };
@@ -79,12 +86,17 @@ internal static class Program
                 root.Measure(new Size(width, 280));
                 root.Arrange(new Rect(0, 0, width, 280));
                 root.UpdateLayout();
-                foreach (string name in new[] { "NewBtn", "NotePicker", "DeleteBtn", "SettingsBtn", "CopyBtn", "CloseBtn" })
+                double previousRight = 0;
+                foreach (string name in new[] { "NewBtn", "NotePicker", "DeleteBtn", "TitleLabel", "SettingsBtn", "CopyBtn", "CloseBtn" })
                 {
                     FrameworkElement element = Control<FrameworkElement>(window, name);
                     Rect bounds = element.TransformToAncestor(root).TransformBounds(new Rect(element.RenderSize));
-                    Check(bounds.Width > 0 && bounds.Left >= 0 && bounds.Right <= width && bounds.Top >= 0 && bounds.Bottom <= 76,
+                    Check(bounds.Width > 0 && bounds.Left >= previousRight && bounds.Right <= width &&
+                        bounds.Top >= 0 && bounds.Bottom <= 40,
                         $"{name} is clipped at width {width}.");
+                    Check(Math.Abs((bounds.Top + bounds.Bottom) / 2 - 20) <= 1,
+                        $"{name} is not on the same toolbar line at width {width}.");
+                    previousRight = bounds.Right;
                 }
                 TextBlock title = Descendants(root).OfType<TextBlock>().Single(t => t.Text == "QuickText");
                 Rect titleBounds = title.TransformToAncestor(root).TransformBounds(new Rect(title.RenderSize));
@@ -144,4 +156,5 @@ internal static class Program
         timer.Start();
         Dispatcher.PushFrame(frame);
     }
+
 }

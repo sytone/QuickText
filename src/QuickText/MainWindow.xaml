@@ -50,10 +50,10 @@
                                     </ControlTemplate>
                                 </ToggleButton.Template>
                             </ToggleButton>
-                            <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
-                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
-                                              Margin="8,0,24,0" VerticalAlignment="Center"
-                                              IsHitTestVisible="False"/>
+                            <TextBlock Text="{Binding SelectedItem, RelativeSource={RelativeSource TemplatedParent}}"
+                                       TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"
+                                       Margin="8,0,24,0" VerticalAlignment="Center"
+                                       IsHitTestVisible="False"/>
                             <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
                                    Placement="Bottom" AllowsTransparency="True" Focusable="False">
                                 <Border Background="{StaticResource Surface1}"
@@ -73,27 +73,53 @@
     </Window.Resources>
 
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="76" ResizeBorderThickness="6"
+        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6"
                             GlassFrameThickness="0" CornerRadius="0"
                             UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="76"/>
+            <RowDefinition Height="40"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Margin="8,0">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="36"/>
-                <RowDefinition Height="40"/>
-            </Grid.RowDefinitions>
-            <TextBlock Text="QuickText" HorizontalAlignment="Center" VerticalAlignment="Center"
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid VerticalAlignment="Center" Height="28">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="NewBtn" Style="{StaticResource IconButton}" Content="&#xE8A5;"
+                        ToolTip="New note" AutomationProperties.Name="New note"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                <ComboBox x:Name="NotePicker" Grid.Column="1" Margin="6,0" MinWidth="0"
+                          Style="{StaticResource NotePickerStyle}"
+                          VerticalContentAlignment="Center" FontSize="11"
+                          ToolTip="{Binding SelectedItem, RelativeSource={RelativeSource Self}}"
+                          AutomationProperties.Name="Current note"
+                          shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                <Button x:Name="DeleteBtn" Grid.Column="2" Style="{StaticResource IconButton}"
+                        Content="&#xE74D;" ToolTip="Delete selected note"
+                        AutomationProperties.Name="Delete selected note"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+            </Grid>
+            <TextBlock x:Name="TitleLabel" Grid.Column="1" Text="QuickText" Margin="8,0"
+                       HorizontalAlignment="Center" VerticalAlignment="Center"
                        FontSize="12" FontWeight="SemiBold" IsHitTestVisible="False"
                        Foreground="{StaticResource FgSoftBrush}"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+            <StackPanel Grid.Column="2" Orientation="Horizontal"
+                        HorizontalAlignment="Right" VerticalAlignment="Center">
+                <Button x:Name="SettingsBtn" Style="{StaticResource IconButton}"
+                        Content="&#xE713;" ToolTip="Settings" AutomationProperties.Name="Settings"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
                 <Button x:Name="CopyBtn" Style="{StaticResource IconButton}"
                         ToolTip="Copy the whole note" AutomationProperties.Name="Copy note"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
@@ -109,30 +135,6 @@
                         AutomationProperties.Name="Hide window" Margin="2,0,0,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
             </StackPanel>
-            <Grid Grid.Row="1" Margin="0,0,0,4">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Button x:Name="NewBtn" Style="{StaticResource IconButton}" Content="&#xE8A5;"
-                        ToolTip="New note" AutomationProperties.Name="New note"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-                <ComboBox x:Name="NotePicker" Grid.Column="1" Margin="6,2" MinWidth="0"
-                          Style="{StaticResource NotePickerStyle}"
-                          VerticalContentAlignment="Center" FontSize="11"
-                          ToolTip="Select the note to view, edit, and autosave"
-                          AutomationProperties.Name="Current note"
-                          shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-                <Button x:Name="DeleteBtn" Grid.Column="2" Style="{StaticResource IconButton}"
-                        Content="&#xE74D;" ToolTip="Delete selected note"
-                        AutomationProperties.Name="Delete selected note"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-                <Button x:Name="SettingsBtn" Grid.Column="3" Style="{StaticResource IconButton}"
-                        Content="&#xE713;" ToolTip="Settings" AutomationProperties.Name="Settings"
-                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-            </Grid>
         </Grid>
 
         <!-- Editor -->

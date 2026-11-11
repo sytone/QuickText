@@ -10,5 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\QuickText\QuickText.csproj" />
+    <None Include="..\..\src\QuickText\App.xaml" Link="App.resources.xaml"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
