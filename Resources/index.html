@@ -9,8 +9,14 @@
 <body>
   <div id="window-frame">
     <header id="title-bar" title="Drag to move; double-click to collapse">
-      <div style="display: flex; gap: 6px; align-items: center;">
-        <button id="clear-btn" class="btn">Clear</button>
+      <div class="note-controls">
+        <button id="new-btn" class="btn" disabled>New</button>
+        <select id="note-select" aria-label="Current note" title="Select a note" disabled></select>
+        <button id="delete-note-btn" class="btn icon-btn" aria-label="Delete selected note" title="Delete selected note" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>
+          </svg>
+        </button>
         <button id="settings-btn" class="btn">Settings</button>
       </div>
       <span class="title-text">QuickText</span>
@@ -21,11 +27,11 @@
     </header>
     <main id="content">
       <div id="watermark">made by BlazeR</div>
-      <textarea id="pad" placeholder="Start typing notes..." autofocus spellcheck="true"></textarea>
+      <textarea id="pad" placeholder="Start typing notes..." autofocus spellcheck="true" readonly></textarea>
       <footer id="link-bar" style="display: none;"></footer>
     </main>
     
-    <div id="settings-panel">
+    <div id="settings-panel" inert>
       <div class="settings-header">
         <span class="settings-title">Settings</span>
       </div>

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -105,12 +106,38 @@ public partial class MainWindow : Window
         "QuickText"
     );
     private string SettingsPath => Path.Combine(AppDataFolder, "settings.json");
-    private string NotePath => Path.Combine(AppDataFolder, "notes.txt");
+    private NoteStore? noteStore;
+    private bool autosave = true;
 
     public MainWindow()
     {
         InitializeComponent();
         InitializeWebView();
+    }
+
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!ConfirmDiscardChanges()) e.Cancel = true;
+        base.OnClosing(e);
+    }
+
+    private bool ConfirmDiscardChanges()
+    {
+        return noteStore?.HasUnsavedChanges != true ||
+            MessageBox.Show(this, $"Discard unsaved changes to {noteStore.CurrentFileName}?",
+                "Unsaved note", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+    }
+
+    private void PostNoteState()
+    {
+        if (noteStore == null) return;
+        webView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
+        {
+            type = "note_state",
+            notes = noteStore.ListNotes(),
+            currentNote = noteStore.CurrentFileName,
+            noteText = noteStore.CurrentText
+        }));
     }
 
     protected override void OnSourceInitialized(EventArgs e)
@@ -414,22 +441,19 @@ public partial class MainWindow : Window
                         // Apply Opacity
                         SetWindowOpacity(settings.opacity);
 
-                        // Load Saved Text
-                        string noteText = "";
-                        if (settings.autosave && File.Exists(NotePath))
-                        {
-                            try
-                            {
-                                noteText = File.ReadAllText(NotePath);
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"Failed to load note: {ex.Message}");
-                            }
-                        }
+                        autosave = settings.autosave;
+                        noteStore = new NoteStore(AppDataFolder);
+                        noteStore.Initialize();
 
                         // Post back to WebView
-                        var initObj = new { type = "init", settings = settings, noteText = noteText };
+                        var initObj = new
+                        {
+                            type = "init",
+                            settings = settings,
+                            notes = noteStore.ListNotes(),
+                            currentNote = noteStore.CurrentFileName,
+                            noteText = noteStore.CurrentText
+                        };
                         string initJson = JsonSerializer.Serialize(initObj);
                         webView.CoreWebView2.PostWebMessageAsJson(initJson);
                     }
@@ -440,58 +464,72 @@ public partial class MainWindow : Window
                             try
                             {
                                 if (!Directory.Exists(AppDataFolder)) Directory.CreateDirectory(AppDataFolder);
+                                var loaded = settingsProp.Deserialize<AppSettings>()
+                                    ?? throw new InvalidDataException("Settings are missing.");
+                                if (loaded.autosave && noteStore?.HasUnsavedChanges == true)
+                                    noteStore.Save();
                                 string settingsJson = settingsProp.GetRawText();
                                 File.WriteAllText(SettingsPath, settingsJson);
+                                autosave = loaded.autosave;
 
                                 // Re-register global hotkey
-                                var loaded = JsonSerializer.Deserialize<AppSettings>(settingsJson);
-                                if (loaded != null)
-                                {
-                                    UpdateGlobalHotkey(loaded.globalHotkey);
-                                    SetWindowOpacity(loaded.opacity);
-                                }
+                                UpdateGlobalHotkey(loaded.globalHotkey);
+                                SetWindowOpacity(loaded.opacity);
                             }
                             catch (Exception ex)
                             {
                                 Debug.WriteLine($"Failed to save settings: {ex.Message}");
+                                MessageBox.Show(this, $"Failed to save settings: {ex.Message}", "QuickText Error",
+                                    MessageBoxButton.OK, MessageBoxImage.Error);
+                                webView.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(
+                                    new { type = "autosave_state", autosave }));
                             }
                         }
                     }
-                    else if (type == "save_note")
+                    else if (type == "edit_note" || type == "new_note" || type == "select_note" || type == "delete_note")
                     {
-                        if (root.TryGetProperty("text", out var textProp))
-                        {
-                            try
-                            {
-                                if (!Directory.Exists(AppDataFolder)) Directory.CreateDirectory(AppDataFolder);
-                                string noteText = textProp.GetString() ?? "";
-                                File.WriteAllText(NotePath, noteText);
-                            }
-                            catch (Exception ex)
-                            {
-                                Debug.WriteLine($"Failed to save note: {ex.Message}");
-                            }
-                        }
-                    }
-                    else if (type == "clear_note")
-                    {
+                        if (noteStore == null)
+                            throw new InvalidOperationException("Notes have not finished loading.");
                         try
                         {
-                            if (File.Exists(NotePath))
+                            if (type == "edit_note")
                             {
-                                File.Delete(NotePath);
+                                noteStore.UpdateText(root.GetProperty("note").GetString() ?? "",
+                                    root.GetProperty("text").GetString() ?? "", autosave);
+                            }
+                            else if (type == "delete_note")
+                            {
+                                if (MessageBox.Show(this,
+                                    $"Permanently delete {noteStore.CurrentFileName}?\nAny unsaved changes will also be lost.",
+                                    "Delete note", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                                    noteStore.DeleteCurrent();
+                            }
+                            else if (type == "select_note" &&
+                                root.GetProperty("note").GetString() == noteStore.CurrentFileName)
+                            {
+                                // Selecting the active note must not discard its unsaved draft.
+                            }
+                            else if (ConfirmDiscardChanges())
+                            {
+                                if (type == "new_note") noteStore.Create();
+                                else noteStore.Select(root.GetProperty("note").GetString() ?? "");
                             }
                         }
                         catch (Exception ex)
                         {
-                            Debug.WriteLine($"Failed to delete note: {ex.Message}");
+                            Debug.WriteLine($"Note operation failed: {ex.Message}");
+                            MessageBox.Show(this, $"Note operation failed: {ex.Message}", "QuickText Error",
+                                MessageBoxButton.OK, MessageBoxImage.Error);
                         }
+                        if (type != "edit_note") PostNoteState();
                     }
                 }
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"Error parsing WebView message: {ex.Message}");
+                MessageBox.Show(this, $"Unable to process the app request: {ex.Message}", "QuickText Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
     }

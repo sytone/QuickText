@@ -1,6 +1,8 @@
 const pad = document.getElementById('pad');
 const copyBtn = document.getElementById('copy-btn');
-const clearBtn = document.getElementById('clear-btn');
+const newBtn = document.getElementById('new-btn');
+const noteSelect = document.getElementById('note-select');
+const deleteNoteBtn = document.getElementById('delete-note-btn');
 const settingsBtn = document.getElementById('settings-btn');
 const closeBtn = document.getElementById('close-btn');
 const titleBar = document.getElementById('title-bar');
@@ -8,6 +10,8 @@ const linkBar = document.getElementById('link-bar');
 const measurer = document.getElementById('measurer');
 const windowFrame = document.getElementById('window-frame');
 let isCollapsed = false;
+let currentNote = null;
+let noteRequestPending = false;
 
 const settingsPanel = document.getElementById('settings-panel');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
@@ -47,7 +51,7 @@ function postToHost(data) {
 let dragStart = null;
 
 function isTitleBarControl(target) {
-  return target.closest('.btn, input, .switch');
+  return target.closest('.btn, input, select, .switch');
 }
 
 titleBar.addEventListener('mousedown', (e) => {
@@ -128,6 +132,8 @@ function opacityToSliderValue(opacity) {
 function toggleSettings() {
   if (isCollapsed && !settingsPanel.classList.contains('open')) setCollapsed(false);
   const isOpen = settingsPanel.classList.toggle('open');
+  settingsPanel.inert = !isOpen;
+  document.getElementById('content').inert = isOpen;
   if (isOpen) {
     settingsBtn.classList.add('active');
     document.getElementById('content').classList.add('settings-open');
@@ -149,10 +155,11 @@ function toggleSettings() {
   } else {
     settingsBtn.classList.remove('active');
     document.getElementById('content').classList.remove('settings-open');
-    pad.focus();
+    pad.focus({ preventScroll: true });
   }
   // Immediately trigger resize to expand/shrink window for settings panel
   triggerResize();
+  if (isOpen) autosaveToggle.focus({ preventScroll: true });
 }
 
 settingsBtn.addEventListener('click', toggleSettings);
@@ -161,11 +168,6 @@ closeSettingsBtn.addEventListener('click', toggleSettings);
 autosaveToggle.addEventListener('change', () => {
   settings.autosave = autosaveToggle.checked;
   saveSettings();
-  if (settings.autosave) {
-    postToHost({ type: 'save_note', text: pad.value });
-  } else {
-    postToHost({ type: 'clear_note' });
-  }
 });
 
 // Opacity Slider handler
@@ -320,25 +322,31 @@ function saveSettings() {
   postToHost({ type: 'save_settings', settings: settings });
 }
 
-// Clear all text
-clearBtn.addEventListener('click', () => {
-  pad.value = '';
-  pad.focus();
+function requestNote(data) {
+  if (!currentNote || noteRequestPending) return;
+  noteRequestPending = true;
+  newBtn.disabled = noteSelect.disabled = deleteNoteBtn.disabled = true;
+  pad.readOnly = true;
+  postToHost(data);
+}
+
+function applyNoteState(data) {
+  currentNote = data.currentNote;
+  noteSelect.replaceChildren(...data.notes.map(name => new Option(name, name)));
+  noteSelect.value = currentNote;
+  noteSelect.title = currentNote;
+  if (pad.value !== data.noteText) pad.value = data.noteText;
+  noteRequestPending = false;
+  newBtn.disabled = noteSelect.disabled = deleteNoteBtn.disabled = false;
+  pad.readOnly = false;
   detectLinks();
   triggerResize();
-  
-  if (settings.autosave) {
-    postToHost({ type: 'clear_note' });
-  }
-  
-  clearBtn.classList.add('btn-success');
-  const originalText = clearBtn.textContent;
-  clearBtn.textContent = 'Cleared';
-  setTimeout(() => {
-    clearBtn.textContent = originalText;
-    clearBtn.classList.remove('btn-success');
-  }, 1000);
-});
+  if (!isCollapsed && !settingsPanel.classList.contains('open')) pad.focus({ preventScroll: true });
+}
+
+newBtn.addEventListener('click', () => requestNote({ type: 'new_note' }));
+noteSelect.addEventListener('change', () => requestNote({ type: 'select_note', note: noteSelect.value }));
+deleteNoteBtn.addEventListener('click', () => requestNote({ type: 'delete_note' }));
 
 // Copy action with animation
 function triggerCopy() {
@@ -359,22 +367,24 @@ copyBtn.addEventListener('click', triggerCopy);
 pad.addEventListener('keydown', function (e) {
   if (e.key === 'Tab') {
     e.preventDefault();
+    if (this.readOnly) return;
     const start = this.selectionStart;
     const end = this.selectionEnd;
     this.value = this.value.substring(0, start) + "\t" + this.value.substring(end);
     this.selectionStart = this.selectionEnd = start + 1;
-    triggerResize();
+    handleNoteInput();
   }
 });
 
 // Detect links and resize on input
-pad.addEventListener('input', () => {
+function handleNoteInput() {
+  if (!currentNote || noteRequestPending) return;
   detectLinks();
   triggerResize();
-  if (settings.autosave) {
-    postToHost({ type: 'save_note', text: pad.value });
-  }
-});
+  postToHost({ type: 'edit_note', note: currentNote, text: pad.value });
+}
+
+pad.addEventListener('input', handleNoteInput);
 
 function detectLinks() {
   const text = pad.value;
@@ -440,6 +450,7 @@ function detectLinks() {
 // Dynamically resize window based on content scrollHeight
 function triggerResize() {
   const titleHeight = titleBar.getBoundingClientRect().height;
+  windowFrame.style.setProperty('--title-bar-height', `${titleHeight}px`);
   const width = settings.minWidth !== undefined ? settings.minWidth : 600;
   if (isCollapsed) {
     const frameStyle = getComputedStyle(windowFrame);
@@ -485,11 +496,7 @@ if (window.chrome && window.chrome.webview) {
         if (settings.minHeight === undefined) settings.minHeight = 300;
         if (settings.maxHeight === undefined) settings.maxHeight = 2000;
       }
-      if (data.noteText !== undefined) {
-        pad.value = data.noteText;
-      }
-      detectLinks();
-      triggerResize();
+      applyNoteState(data);
       
       // Apply opacity on UI load
       const currentOpacity = settings.opacity !== undefined ? settings.opacity : 1.0;
@@ -498,6 +505,11 @@ if (window.chrome && window.chrome.webview) {
       
       // Apply hotkey on UI load
       exitHotkeyInput.value = settings.exitHotkey || 'None';
+    } else if (data && data.type === 'note_state') {
+      applyNoteState(data);
+    } else if (data && data.type === 'autosave_state') {
+      settings.autosave = data.autosave;
+      autosaveToggle.checked = data.autosave;
     }
   });
 }
