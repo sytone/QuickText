@@ -8,12 +8,19 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Added
 
+- Native WPF Markdown note library reusing the previous fork's note store:
+  timestamped filenames, selected-note persistence, newest-first dropdown,
+  legacy import, and confirmed deletion with an empty last-note replacement.
+- Centered title and New, delete, settings, document-copy, and X toolbar icons.
+- Storage regression tests and native WPF note workflow/layout checks.
 - Restored the per-user install/update script for the native WPF project, with
   graceful shutdown and registry-based startup.
 - Shared Markdown lint configuration and contributor validation instructions.
 
 ### Changed
 
+- Autosave targets the selected Markdown note and flushes before switching.
+  Disabling autosave preserves files and warns before discarding drafts.
 - Updated the README for this fork's native baseline and installer.
 - Cleaned up Markdown formatting throughout the repository.
 

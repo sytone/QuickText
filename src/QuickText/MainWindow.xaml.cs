@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Windows;
@@ -23,6 +24,7 @@ public partial class MainWindow : Window
     private static readonly Regex UrlRegex = new(@"https?://[^\s]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly AppSettings _s = Storage.LoadSettings();
+    private readonly NoteStore _notes = Storage.CreateNoteStore();
     private readonly GlobalHotkey _global = new();
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     private readonly Dictionary<Button, int> _flashTokens = new();
@@ -36,6 +38,7 @@ public partial class MainWindow : Window
     private TrayIcon? _tray;
     private double _baseHeight;
     private bool _noteDirty, _settingsDirty, _settingsOpen, _loadingUi;
+    private bool _loadingNote;
     private Button? _recording;
 
     public MainWindow()
@@ -60,8 +63,8 @@ public partial class MainWindow : Window
             : CultureInfo.CurrentUICulture.IetfLanguageTag;
         Pad.Language = XmlLanguage.GetLanguage(spellLanguage);
 
-        if (_s.Autosave) Pad.Text = Storage.LoadNote();
-        Pad.CaretIndex = Pad.Text.Length;
+        _notes.Initialize();
+        LoadCurrentNote();
 
         AboutLabel.Text = $"QuickText v{typeof(MainWindow).Assembly.GetName().Version?.ToString(3)}  -  made by BlazeR";
 
@@ -82,7 +85,19 @@ public partial class MainWindow : Window
         CloseBtn.Click += (_, _) => HideWindow();
         ExitAppBtn.Click += (_, _) => Close();
         CopyBtn.Click += (_, _) => DoCopy();
-        ClearBtn.Click += (_, _) => DoClear();
+        NewBtn.Click += (_, _) => ChangeNote(_notes.Create);
+        DeleteBtn.Click += (_, _) =>
+        {
+            if (MessageBox.Show(this, $"Permanently delete {_notes.CurrentFileName}?",
+                "Delete note", MessageBoxButton.YesNo, MessageBoxImage.Warning,
+                MessageBoxResult.No) == MessageBoxResult.Yes)
+                ChangeNote(_notes.DeleteCurrent);
+        };
+        NotePicker.SelectionChanged += (_, _) =>
+        {
+            if (!_loadingNote && NotePicker.SelectedItem is string name && name != _notes.CurrentFileName)
+                ChangeNote(() => _notes.Select(name));
+        };
 
         AutosaveSwitch.Click += (_, _) => OnAutosaveChanged();
         AutostartSwitch.Click += (_, _) =>
@@ -198,6 +213,13 @@ public partial class MainWindow : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         base.OnClosing(e);
+        if (e.Cancel) return;
+        if (!PrepareToLeaveNote())
+        {
+            e.Cancel = true;
+            return;
+        }
+        _saveTimer.Stop();
         CaptureGeometry();
         _noteDirty = _s.Autosave;
         _settingsDirty = true;
@@ -288,6 +310,8 @@ public partial class MainWindow : Window
 
     private void OnTextChanged()
     {
+        if (_loadingNote) return;
+        _notes.UpdateText(_notes.CurrentFileName, Pad.Text, false);
         RebuildLinks();
         UpdateHeight();
         if (_s.Autosave)
@@ -303,34 +327,105 @@ public partial class MainWindow : Window
         try
         {
             Clipboard.SetDataObject(Pad.Text, true);
-            Flash(CopyBtn, "Copy", "Copied", (Brush)FindResource("SuccessBrush"));
+            Flash(CopyBtn, "Copied", (Brush)FindResource("SuccessBrush"));
         }
         catch (COMException)
         {
-            Flash(CopyBtn, "Copy", "Failed", (Brush)FindResource("DangerBrush"));
+            Flash(CopyBtn, "Copy failed", (Brush)FindResource("DangerBrush"));
         }
     }
 
-    private void DoClear()
+    private void LoadCurrentNote()
     {
-        // Replacing the selection keeps the undo history, so Ctrl+Z restores the note.
-        Pad.SelectAll();
-        Pad.SelectedText = "";
-        Pad.Focus();
-        Flash(ClearBtn, "Clear", "Cleared", (Brush)FindResource("SuccessBrush"));
+        _loadingNote = true;
+        try
+        {
+            NotePicker.ItemsSource = _notes.ListNotes();
+            NotePicker.SelectedItem = _notes.CurrentFileName;
+            Pad.Text = _notes.CurrentText;
+            Pad.IsUndoEnabled = false;
+            Pad.IsUndoEnabled = true;
+            Pad.CaretIndex = Pad.Text.Length;
+            Pad.ScrollToHome();
+            _selectionBeforeRightClick = null;
+            _noteDirty = false;
+        }
+        finally { _loadingNote = false; }
+        RebuildLinks();
+        UpdateHeight();
     }
 
-    private async void Flash(Button button, string original, string text, Brush color)
+    private bool TrySaveNote()
+    {
+        try
+        {
+            _notes.UpdateText(_notes.CurrentFileName, Pad.Text, true);
+            _noteDirty = false;
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowNoteError(ex);
+            return false;
+        }
+    }
+
+    private void ShowNoteError(Exception ex)
+    {
+        Storage.LogCrash(ex);
+        MessageBox.Show(this, $"QuickText could not update the note files.\n\n{ex.Message}\n\n" +
+            "Your current draft is still open. Resolve the file access problem and try again.",
+            "Note file error", MessageBoxButton.OK, MessageBoxImage.Error);
+    }
+
+    private bool PrepareToLeaveNote()
+    {
+        if (_s.Autosave) return TrySaveNote();
+        return !_notes.HasUnsavedChanges || MessageBox.Show(this,
+            "Autosave is off. Discard unsaved changes to this note?",
+            "Unsaved note", MessageBoxButton.YesNo, MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+    }
+
+    private void ChangeNote(Action change)
+    {
+        bool changed = false;
+        try
+        {
+            if (PrepareToLeaveNote())
+            {
+                change();
+                changed = true;
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            ShowNoteError(ex);
+        }
+        if (changed)
+        {
+            LoadCurrentNote();
+            if (!_settingsOpen) Pad.Focus();
+        }
+        else
+        {
+            _loadingNote = true;
+            try { NotePicker.SelectedItem = _notes.CurrentFileName; }
+            finally { _loadingNote = false; }
+        }
+    }
+
+    private async void Flash(Button button, string text, Brush color)
     {
         int token = _flashTokens[button] = _flashTokens.GetValueOrDefault(button) + 1;
-        button.Content = text;
+        button.ToolTip = text;
         button.Foreground = color;
         button.BorderBrush = color;
 
         await Task.Delay(1200);
 
         if (_flashTokens[button] != token) return;
-        button.Content = original;
+        button.ToolTip = "Copy the whole note";
         button.ClearValue(Control.ForegroundProperty);
         button.ClearValue(Control.BorderBrushProperty);
     }
@@ -498,8 +593,7 @@ public partial class MainWindow : Window
     {
         if (_noteDirty && _s.Autosave)
         {
-            Storage.SaveNote(Pad.Text);
-            _noteDirty = false;
+            TrySaveNote();
         }
         if (_settingsDirty)
         {
@@ -523,6 +617,8 @@ public partial class MainWindow : Window
         HotkeyError.Text = _globalError ?? "";
 
         SettingsPanel.Visibility = Visibility.Visible;
+        EditorPanel.IsEnabled = false;
+        PillPanel.IsEnabled = false;
         _settingsOpen = true;
         UpdateHeight();
     }
@@ -531,6 +627,8 @@ public partial class MainWindow : Window
     {
         StopRecording();
         SettingsPanel.Visibility = Visibility.Collapsed;
+        EditorPanel.IsEnabled = true;
+        PillPanel.IsEnabled = true;
         _settingsOpen = false;
         UpdateHeight();
         Pad.Focus();
@@ -539,8 +637,7 @@ public partial class MainWindow : Window
     private void OnAutosaveChanged()
     {
         _s.Autosave = AutosaveSwitch.IsChecked == true;
-        if (_s.Autosave) _noteDirty = true;
-        else Storage.DeleteNote();
+        _noteDirty = _s.Autosave;
         MarkSettingsDirty();
     }
 

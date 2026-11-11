@@ -11,39 +11,132 @@
         UseLayoutRounding="True" SnapsToDevicePixels="True"
         FontFamily="{StaticResource UiFont}">
 
+    <Window.Resources>
+        <Style x:Key="NotePickerStyle" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="{StaticResource FgBrush}"/>
+            <Setter Property="ItemContainerStyle">
+                <Setter.Value>
+                    <Style TargetType="ComboBoxItem">
+                        <Setter Property="Foreground" Value="{StaticResource FgBrush}"/>
+                        <Setter Property="Background" Value="{StaticResource Surface1}"/>
+                        <Setter Property="Padding" Value="8,5"/>
+                        <Style.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="{StaticResource Surface3}"/>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{StaticResource Surface1}"
+                                                BorderBrush="{StaticResource LineBrush}"
+                                                BorderThickness="1" CornerRadius="4">
+                                            <Grid Margin="6,0">
+                                                <TextBlock Text="&#xE70D;" FontSize="10"
+                                                           FontFamily="{StaticResource IconFont}"
+                                                           Foreground="{StaticResource MutedBrush}"
+                                                           HorizontalAlignment="Right"
+                                                           VerticalAlignment="Center"/>
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter Content="{TemplateBinding SelectionBoxItem}"
+                                              ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                              Margin="8,0,24,0" VerticalAlignment="Center"
+                                              IsHitTestVisible="False"/>
+                            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom" AllowsTransparency="True" Focusable="False">
+                                <Border Background="{StaticResource Surface1}"
+                                        BorderBrush="{StaticResource LineBrush}" BorderThickness="1"
+                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
+                                    <ScrollViewer MaxHeight="280" CanContentScroll="True"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <shell:WindowChrome.WindowChrome>
-        <shell:WindowChrome CaptionHeight="40" ResizeBorderThickness="6"
+        <shell:WindowChrome CaptionHeight="76" ResizeBorderThickness="6"
                             GlassFrameThickness="0" CornerRadius="0"
                             UseAeroCaptionButtons="False"/>
     </shell:WindowChrome.WindowChrome>
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="40"/>
+            <RowDefinition Height="76"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header: the empty area is the drag handle -->
-        <Grid Grid.Row="0" Margin="18,0,8,0">
-            <!-- Brand mark: a text-cursor bar in the accent colour, followed by the name -->
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" IsHitTestVisible="False">
-                <Rectangle Width="3" Height="14" RadiusX="1" RadiusY="1" Fill="{StaticResource AccentBrush}"
-                           VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock Text="QuickText" VerticalAlignment="Center" FontSize="12" FontWeight="SemiBold"
-                           Foreground="{StaticResource FgSoftBrush}"/>
-            </StackPanel>
+        <Grid Grid.Row="0" Margin="8,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="36"/>
+                <RowDefinition Height="40"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="QuickText" HorizontalAlignment="Center" VerticalAlignment="Center"
+                       FontSize="12" FontWeight="SemiBold" IsHitTestVisible="False"
+                       Foreground="{StaticResource FgSoftBrush}"/>
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button x:Name="SettingsBtn" Style="{StaticResource IconButton}" Content="&#xE713;"
-                        ToolTip="Settings" AutomationProperties.Name="Settings"
+                <Button x:Name="CopyBtn" Style="{StaticResource IconButton}"
+                        ToolTip="Copy the whole note" AutomationProperties.Name="Copy note"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Viewbox Width="16" Height="16">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M 7,7 L 7,3 L 16,3 L 20,7 L 20,18 L 17,18 M 16,3 L 16,7 L 20,7 M 3,8 L 12,8 L 16,12 L 16,22 L 3,22 Z M 12,8 L 12,12 L 16,12 M 6,15 L 12,15 M 6,18 L 12,18"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+                <Button x:Name="CloseBtn" Style="{StaticResource IconButton}" Content="&#xE711;"
+                        AutomationProperties.Name="Hide window" Margin="2,0,0,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
-                <Button x:Name="CloseBtn" Style="{StaticResource IconButton}" Content="&#xE921;"
-                        AutomationProperties.Name="Hide window" Margin="2,0,0,0" shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
             </StackPanel>
+            <Grid Grid.Row="1" Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button x:Name="NewBtn" Style="{StaticResource IconButton}" Content="&#xE8A5;"
+                        ToolTip="New note" AutomationProperties.Name="New note"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                <ComboBox x:Name="NotePicker" Grid.Column="1" Margin="6,2" MinWidth="0"
+                          Style="{StaticResource NotePickerStyle}"
+                          VerticalContentAlignment="Center" FontSize="11"
+                          ToolTip="Select the note to view, edit, and autosave"
+                          AutomationProperties.Name="Current note"
+                          shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                <Button x:Name="DeleteBtn" Grid.Column="2" Style="{StaticResource IconButton}"
+                        Content="&#xE74D;" ToolTip="Delete selected note"
+                        AutomationProperties.Name="Delete selected note"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                <Button x:Name="SettingsBtn" Grid.Column="3" Style="{StaticResource IconButton}"
+                        Content="&#xE713;" ToolTip="Settings" AutomationProperties.Name="Settings"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+            </Grid>
         </Grid>
 
         <!-- Editor -->
-        <Grid Grid.Row="1" Margin="0,0,6,0">
+        <Grid x:Name="EditorPanel" Grid.Row="1" Margin="0,0,6,0">
             <TextBox x:Name="Pad" Style="{StaticResource PadStyle}"
                      Background="Transparent" BorderThickness="0"
                      Foreground="{StaticResource FgBrush}"
@@ -74,20 +167,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- Footer: link pills left, actions right -->
-        <Grid Grid.Row="2" Margin="18,6,16,14">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <WrapPanel x:Name="PillPanel" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,12,-4"/>
-            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Bottom">
-                <Button x:Name="ClearBtn" Style="{StaticResource ChipButton}" Content="Clear"
-                        ToolTip="Clear the note (Ctrl+Z brings it back)" MinWidth="64"/>
-                <Button x:Name="CopyBtn" Style="{StaticResource PrimaryButton}" Content="Copy"
-                        ToolTip="Copy the whole note" Margin="8,0,0,0" MinWidth="72"/>
-            </StackPanel>
-        </Grid>
+        <WrapPanel x:Name="PillPanel" Grid.Row="2" Margin="18,6,16,10"/>
 
         <!-- Settings overlay -->
         <Grid x:Name="SettingsPanel" Grid.Row="1" Grid.RowSpan="2" Visibility="Collapsed"

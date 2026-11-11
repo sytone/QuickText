@@ -7,8 +7,9 @@ Only the latest release receives fixes. Please update before reporting.
 ## What QuickText does and does not do
 
 QuickText works entirely offline. It has no network code, no telemetry and no
-account. It stores two files in `%LOCALAPPDATA%\QuickText` (settings and, if
-autosave is on, your note) and, if you enable it, one startup entry in
+account. It stores settings, timestamped Markdown notes, a selected-note marker,
+and any retained legacy `notes.txt` backup in `%LOCALAPPDATA%\QuickText`.
+If you enable it, it also stores one startup entry in
 `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. Links in a note are opened
 in your default browser, and only if they start with `http://` or `https://`.
 
