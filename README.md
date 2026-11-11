@@ -126,6 +126,25 @@ The published executable will be located at:
 
 The destination machine must have the .NET 10 Desktop Runtime and WebView2 Runtime installed.
 
+### Install or Update for the Current User
+From the repository directory, run:
+
+```powershell
+.\scripts\Install-QuickText.ps1
+```
+
+The script publishes a Windows x64 release to `bin\publish`, then installs it at
+`%LOCALAPPDATA%\Programs\QuickText`. It force-stops any instance running from that
+installation before copying the published files, creates or updates the Windows
+Startup shortcut, and launches QuickText. Other copies running from different
+locations are left alone. Publishing must succeed before the installed app is
+stopped or changed.
+
+Use `.\scripts\Install-QuickText.ps1 -NoStart` to install without launching immediately.
+The same command works for first-time installation and updates; no administrator
+rights are required. Existing notes and settings are preserved. The build and
+runtime prerequisites above still apply.
+
 ---
 
 ## 📄 License
