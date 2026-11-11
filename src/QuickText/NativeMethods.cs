@@ -7,6 +7,8 @@ internal static class NativeMethods
     public const int WM_HOTKEY = 0x0312;
     public const int WM_STYLECHANGING = 0x007C;
     public const int WM_EXITSIZEMOVE = 0x0232;
+    public const int WM_NCLBUTTONDBLCLK = 0x00A3;
+    public const int HTCAPTION = 2;
 
     public const int GWL_EXSTYLE = -20;
     public const int WS_EX_LAYERED = 0x80000;

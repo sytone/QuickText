@@ -1,8 +1,10 @@
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Markup;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
@@ -127,9 +129,54 @@ internal static class Program
             Check(!Control<Grid>(window, "EditorPanel").IsEnabled, "Settings leaves the editor focusable.");
             Invoke(window, "CloseSettings");
             Check(Control<Grid>(window, "EditorPanel").IsEnabled, "Closing Settings did not restore the editor.");
+            double expandedHeight = window.Height;
+            double minimumHeight = window.MinHeight;
+            double baseHeight = Field<double>(window, "_baseHeight");
+            string selectedNote = (string)picker.SelectedItem;
+            pad.Text = "# Pending edit before collapse";
+            pad.Select(2, 7);
+            for (int cycle = 0; cycle < 3; cycle++)
+            {
+                Check(CaptionDoubleClick(window, 2), "Caption double-click was not handled.");
+                Check(window.Height == 40 && window.MinHeight == 40 &&
+                    window.ResizeMode == ResizeMode.NoResize, "Collapse did not produce a toolbar-only window.");
+                Check(Control<Grid>(window, "EditorPanel").Visibility == Visibility.Collapsed &&
+                    Control<WrapPanel>(window, "PillPanel").Visibility == Visibility.Collapsed,
+                    "Collapsed content remains visible or focusable.");
+                Invoke(window, "OnUserMovedOrResized");
+                window.SaveNow();
+                Check(Field<AppSettings>(window, "_s").Height == baseHeight,
+                    "Moving/saving the collapsed bar replaced the expanded size.");
+                Check(!CaptionDoubleClick(window, 1) && window.Height == 40,
+                    "A non-caption double-click toggled collapse.");
+                Check(CaptionDoubleClick(window, 2), "Expand caption double-click was not handled.");
+                Check(window.Height == expandedHeight && window.MinHeight == minimumHeight &&
+                    window.ResizeMode == ResizeMode.CanResize, "Expansion did not restore manual resizing and height.");
+                Check(pad.Text == "# Pending edit before collapse" && pad.SelectionStart == 2 &&
+                    pad.SelectionLength == 7 && (string)picker.SelectedItem == selectedNote,
+                    "Collapse/expand changed the draft, selection, or active note.");
+            }
+            Check(File.ReadAllText(Path.Combine(directory, selectedNote)) == pad.Text,
+                "Autosave did not preserve the collapsed draft.");
+            CaptionDoubleClick(window, 2);
+            Invoke(window, "OpenSettings");
+            Check(!Field<bool>(window, "_collapsed") &&
+                Control<Grid>(window, "SettingsPanel").Visibility == Visibility.Visible,
+                "Opening Settings did not expand the collapsed window.");
+            CaptionDoubleClick(window, 2);
+            Check(Control<Grid>(window, "SettingsPanel").Visibility == Visibility.Collapsed &&
+                window.Height == 40, "Collapsing Settings left an overlay visible.");
+            CaptionDoubleClick(window, 2);
+            IntPtr handle = new WindowInteropHelper(window).EnsureHandle();
+            SendMessage(handle, 0x00A3, new IntPtr(2), IntPtr.Zero);
+            Check(Field<bool>(window, "_collapsed") && window.Height == 40,
+                "The native caption message did not collapse through WindowChrome.");
+            SendMessage(handle, 0x00A3, new IntPtr(2), IntPtr.Zero);
+            Check(!Field<bool>(window, "_collapsed") && window.WindowState == WindowState.Normal,
+                "The native caption message maximized instead of expanding.");
             window.Close();
             Check(File.ReadAllText(Path.Combine(directory, "notes.txt")) == "# Legacy backup", "Legacy backup changed.");
-            Console.WriteLine("PASS: native New/dropdown/autosave/delete/restart, themed delete/cancel/close dialog, undo isolation, autosave toggle, centered title and icons at 360-1920px, Settings focus isolation.");
+            Console.WriteLine("PASS: native notes, themed confirmation, toolbar layout, collapse/expand, saved expanded size, pending autosave, selection, and Settings transitions.");
             return 0;
         }
         catch (Exception ex)
@@ -152,6 +199,17 @@ internal static class Program
 
     private static void Invoke(MainWindow window, string name, params object[] arguments) =>
         typeof(MainWindow).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, arguments);
+
+    private static bool CaptionDoubleClick(MainWindow window, int hitTest)
+    {
+        object[] arguments = { IntPtr.Zero, 0x00A3, new IntPtr(hitTest), IntPtr.Zero, false };
+        typeof(MainWindow).GetMethod("WndProc", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .Invoke(window, arguments);
+        return (bool)arguments[4];
+    }
+
+    [DllImport("user32.dll", EntryPoint = "SendMessageW")]
+    private static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
     {
