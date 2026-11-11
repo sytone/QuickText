@@ -10,19 +10,37 @@
   <div id="window-frame">
     <header id="title-bar" title="Drag to move; double-click to collapse">
       <div class="note-controls">
-        <button id="new-btn" class="btn" disabled>New</button>
+        <button id="new-btn" class="btn icon-btn" aria-label="New note" title="New note" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M12 11v6M9 14h6"/>
+          </svg>
+        </button>
         <select id="note-select" aria-label="Current note" title="Select a note" disabled></select>
         <button id="delete-note-btn" class="btn icon-btn" aria-label="Delete selected note" title="Delete selected note" disabled>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7"/>
           </svg>
         </button>
-        <button id="settings-btn" class="btn">Settings</button>
+        <button id="settings-btn" class="btn icon-btn" aria-label="Settings" title="Settings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9.5 3-.5 2a7 7 0 0 0-1.6.9l-2-.6L3 9.5l1.5 1.4a7 7 0 0 0 0 2.2L3 14.5l2.4 4.2 2-.6A7 7 0 0 0 9 19l.5 2h5l.5-2a7 7 0 0 0 1.6-.9l2 .6 2.4-4.2-1.5-1.4a7 7 0 0 0 0-2.2L21 9.5l-2.4-4.2-2 .6A7 7 0 0 0 15 5l-.5-2z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
       </div>
       <span class="title-text">QuickText</span>
-      <div style="display: flex; gap: 6px;">
-        <button id="copy-btn" class="btn">Copy</button>
-        <button id="close-btn" class="btn" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #FF6B6B;">Close</button>
+      <div class="window-controls">
+        <button id="copy-btn" class="btn icon-btn" aria-label="Copy" title="Copy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            <path d="M16 6h-6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V12zM16 6v6h6M11 15h8M11 18h6"/>
+          </svg>
+        </button>
+        <button id="close-btn" class="btn icon-btn" aria-label="Close" title="Close" style="background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.2); color: #FF6B6B;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m6 6 12 12M18 6 6 18"/>
+          </svg>
+        </button>
       </div>
     </header>
     <main id="content">

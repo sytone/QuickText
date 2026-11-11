@@ -30,6 +30,7 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 
 - **Frosted Glassmorphism:** Fully transparent/translucent window styling utilizing Windows DWM composition.
 - **Slate-Purple Caret & Selection:** Custom-tailored text input styling matching the active theme color tokens.
+- **Compact Toolbar:** The QuickText title stays centered and visible at every supported window width. New note, Settings, Copy, and Close use icon buttons with tooltips and accessible labels.
 - **Flexbox Layout:** The title bar stays visible while the editor scrolls, including with Page Up/Down. Closed Settings controls are excluded from keyboard focus; opening Settings keeps its scrolling inside the panel.
 - **Watermark Branding:** A centered, low-opacity "made by BlazeR" footer that dynamically pushes upward when links are detected to avoid visual overlapping.
 
@@ -47,7 +48,7 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 - **Markdown Note Library:** New creates an empty `note-YYYY-MM-DD-HH-MM-SS.md` file. The dropdown lists notes by filename, newest first; selecting one opens it for editing. Rapid creation advances the timestamp by one second when necessary to avoid overwriting notes.
 - **Autosave & Auto-Restore:** With Autosave enabled, edits are written to the selected note in real time. The last selected note reopens after a restart. With Autosave disabled, switching notes, creating a note, or exiting warns before discarding unsaved edits; enabling it saves the current draft. Disabling Autosave does not delete saved files.
 - **Tab Insertion:** Intercepts the `Tab` key to insert literal `\t` characters instead of shifting focus to other UI controls.
-- **Copy Feedback:** Single-click Copy button with a temporary green success glow animation.
+- **Copy Feedback:** The Copy icon stays visible during its temporary green success glow and "Copied" tooltip.
 - **Delete Notes:** The trash button confirms before permanently deleting the selected note, then opens the newest remaining note. Deleting the last note creates an empty replacement.
 - **Markdown Source:** Notes are plain Markdown files edited as text, not rendered previews. Syntax highlighting is not yet implemented.
 - **Reactive Link Pills:** Automatically scans your notes for URLs in real-time, displaying them as clickable pills at the bottom. Clicking a pill opens the URL in your default system browser.
