@@ -14,6 +14,7 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 ---
 
 ## 📖 Table of Contents
+
 - [Core Features](#-core-features)
 - [Keyboard Shortcuts Reference](#-keyboard-shortcuts-reference)
 - [Technical Architecture](#-technical-architecture)
@@ -26,29 +27,32 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 ## ✨ Core Features
 
 ### 🎨 Premium UI/UX (Glassmorphism)
-* **Frosted Glassmorphism:** Fully transparent/translucent window styling utilizing Windows DWM composition.
-* **Slate-Purple Caret & Selection:** Custom-tailored text input styling matching the active theme color tokens.
-* **Flexbox Layout:** A fixed title bar and footer that remain visible, restricting scrollbars exclusively to the notepad text area.
-* **Watermark Branding:** A centered, low-opacity "made by BlazeR" footer that dynamically pushes upward when links are detected to avoid visual overlapping.
+
+- **Frosted Glassmorphism:** Fully transparent/translucent window styling utilizing Windows DWM composition.
+- **Slate-Purple Caret & Selection:** Custom-tailored text input styling matching the active theme color tokens.
+- **Flexbox Layout:** A fixed title bar and footer that remain visible, restricting scrollbars exclusively to the notepad text area.
+- **Watermark Branding:** A centered, low-opacity "made by BlazeR" footer that dynamically pushes upward when links are detected to avoid visual overlapping.
 
 ### ⚡ Native Performance & Windows Interop
-* **Win32 Layered Window Opacity:** Window transparency is handled natively via Win32 `SetLayeredWindowAttributes` by bypassing WPF's restrictive `AllowsTransparency="True"` mode (which conflicts with WebView2 input capture).
-* **Always-On-Top:** Native WPF topmost configuration keeps the scratchpad visible over other applications.
-* **Borderless Dragging:** Smooth window repositioning by clicking and dragging anywhere on the frosted background title bar.
-* **Collapsible Scratchpad:** Double-click the title bar background to collapse the window to just its toolbar; double-click again to restore the editor without losing text. Clear, Copy, and Close remain available while collapsed; Settings expands the window to show its panel. The collapsed bar stays draggable and temporarily bypasses the minimum editor height.
-* **Customizable Window Size Limits:** Automatically grows and shrinks the window height to match note length, bounded by user-defined minimum/maximum height and fixed width limits configured in the Settings panel via a clean 2x2 grid layout.
-* **System-wide Visibility Toggle:** Register a global hotkey to show or hide the scratchpad instantly from anywhere in Windows.
+
+- **Win32 Layered Window Opacity:** Window transparency is handled natively via Win32 `SetLayeredWindowAttributes` by bypassing WPF's restrictive `AllowsTransparency="True"` mode (which conflicts with WebView2 input capture).
+- **Always-On-Top:** Native WPF topmost configuration keeps the scratchpad visible over other applications.
+- **Borderless Dragging:** Smooth window repositioning by clicking and dragging anywhere on the frosted background title bar.
+- **Collapsible Scratchpad:** Double-click the title bar background to collapse the window to just its toolbar; double-click again to restore the editor without losing text. Clear, Copy, and Close remain available while collapsed; Settings expands the window to show its panel. The collapsed bar stays draggable and temporarily bypasses the minimum editor height.
+- **Customizable Window Size Limits:** Automatically grows and shrinks the window height to match note length, bounded by user-defined minimum/maximum height and fixed width limits configured in the Settings panel via a clean 2x2 grid layout.
+- **System-wide Visibility Toggle:** Register a global hotkey to show or hide the scratchpad instantly from anywhere in Windows.
 
 ### 📝 Editor Utilities
-* **Autosave & Auto-Restore:** Notepad content is written to disk in real-time and automatically restored on next startup.
-* **Tab Insertion:** Intercepts the `Tab` key to insert literal `\t` characters instead of shifting focus to other UI controls.
-* **Copy Feedback:** Single-click Copy button with a temporary green success glow animation.
-* **Clear Animation:** Amber-styled Clear button with a success confirmation state that wipes content and shrinks the window back to its configured minimum height.
-* **Reactive Link Pills:** Automatically scans your notes for URLs in real-time, displaying them as clickable pills at the bottom. Clicking a pill opens the URL in your default system browser.
+
+- **Autosave & Auto-Restore:** Notepad content is written to disk in real-time and automatically restored on next startup.
+- **Tab Insertion:** Intercepts the `Tab` key to insert literal `\t` characters instead of shifting focus to other UI controls.
+- **Copy Feedback:** Single-click Copy button with a temporary green success glow animation.
+- **Clear Animation:** Amber-styled Clear button with a success confirmation state that wipes content and shrinks the window back to its configured minimum height.
+- **Reactive Link Pills:** Automatically scans your notes for URLs in real-time, displaying them as clickable pills at the bottom. Clicking a pill opens the URL in your default system browser.
 
 ---
 
-## ⌨️ Keyboard Shortcuts Reference
+## ⌨ Keyboard Shortcuts Reference
 
 The application supports both **local shortcuts** (active when the window is focused) and **global hotkeys** (active system-wide). All shortcuts can be customized or disabled (`not set`) directly in the Settings panel.
 
@@ -62,13 +66,13 @@ The application supports both **local shortcuts** (active when the window is foc
 
 ---
 
-## ⚙️ Technical Architecture
+## ⚙ Technical Architecture
 
 The WPF host targets `net10.0-windows` (.NET 10 for Windows). The default publish configuration is framework-dependent: .NET is not bundled with the executable.
 
 To bypass the classic WPF "Airspace Conflict" (where hosting native controls like `WebView2` inside a transparent WPF window causes keyboard inputs to freeze or renders the control completely invisible), QuickText implements a custom **Win32 Hooking Layer**:
 
-```
+```text
 [User Interaction (Slider)]
            │
            ▼
@@ -93,21 +97,24 @@ To bypass the classic WPF "Airspace Conflict" (where hosting native controls lik
 ## 📂 Local Storage & Configuration
 
 QuickText operates completely offline and saves all settings and notes locally in the user's AppData directory:
-* **Settings File:** `%LOCALAPPDATA%\QuickText\settings.json` (stores hotkeys, autosave configuration, and opacity).
-* **Notes File:** `%LOCALAPPDATA%\QuickText\notes.txt` (stores notepad text if Autosave is enabled).
-* **WebView2 Cache:** `%LOCALAPPDATA%\QuickText\WebView2_Data\` (stores browser profile and storage cache).
+
+- **Settings File:** `%LOCALAPPDATA%\QuickText\settings.json` (stores hotkeys, autosave configuration, and opacity).
+- **Notes File:** `%LOCALAPPDATA%\QuickText\notes.txt` (stores notepad text if Autosave is enabled).
+- **WebView2 Cache:** `%LOCALAPPDATA%\QuickText\WebView2_Data\` (stores browser profile and storage cache).
 
 ---
 
-## 🛠️ Prerequisites & Build Instructions
+## 🛠 Prerequisites & Build Instructions
 
 ### Prerequisites
-* Windows 10 or 11 (64-bit)
-* **To build:** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
-* **To run a framework-dependent release:** [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for Windows x64 (included with the SDK; the base .NET Runtime alone is not sufficient for WPF)
-* Microsoft Edge WebView2 Runtime (Pre-installed on modern Windows)
+
+- Windows 10 or 11 (64-bit)
+- **To build:** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- **To run a framework-dependent release:** [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for Windows x64 (included with the SDK; the base .NET Runtime alone is not sufficient for WPF)
+- Microsoft Edge WebView2 Runtime (Pre-installed on modern Windows)
 
 ### Build and Run from Source
+
 Open PowerShell in the repository directory with the .NET 10 SDK installed:
 
 ```powershell
@@ -116,6 +123,7 @@ dotnet run -c Release
 ```
 
 ### Publish a Single-File Executable
+
 Run the following command to publish a framework-dependent Windows x64 release:
 
 ```powershell
@@ -128,6 +136,7 @@ The published executable will be located at:
 The destination machine must have the .NET 10 Desktop Runtime and WebView2 Runtime installed.
 
 ### Install or Update for the Current User
+
 From the repository directory, run:
 
 ```powershell
