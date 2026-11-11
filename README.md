@@ -7,7 +7,7 @@
 
 [![Download QuickText](https://img.shields.io/badge/Download-Latest%20Release-blueviolet.svg?style=for-the-badge&logo=github)](https://github.com/BlazeR-28/QuickText/releases/latest)
 
-QuickText is a lightweight, ultra-low latency, standalone Windows scratchpad application designed for developers and power users. Built on a hybrid architecture of a native **WPF C# shell** and an embedded **WebView2 (Chromium)** instance, it combines the styling flexibility of web technology with the raw performance and control of Windows Win32 APIs.
+QuickText is a lightweight, ultra-low latency Windows scratchpad application designed for developers and power users. Built on **.NET 10** with a hybrid architecture of a native **WPF C# shell** and an embedded **WebView2 (Chromium)** instance, it combines the styling flexibility of web technology with the raw performance and control of Windows Win32 APIs.
 
 The user interface implements a premium, desaturated slate-purple dark theme with frosted glass (glassmorphism) surfaces, subtle hover micro-interactions, and a clean, icon-free layout structure inspired by modern Apple and Obsidian design philosophies.
 
@@ -63,6 +63,8 @@ The application supports both **local shortcuts** (active when the window is foc
 
 ## ⚙️ Technical Architecture
 
+The WPF host targets `net10.0-windows` (.NET 10 for Windows). The default publish configuration is framework-dependent: .NET is not bundled with the executable.
+
 To bypass the classic WPF "Airspace Conflict" (where hosting native controls like `WebView2` inside a transparent WPF window causes keyboard inputs to freeze or renders the control completely invisible), QuickText implements a custom **Win32 Hooking Layer**:
 
 ```
@@ -100,18 +102,29 @@ QuickText operates completely offline and saves all settings and notes locally i
 
 ### Prerequisites
 * Windows 10 or 11 (64-bit)
-* [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+* **To build:** [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+* **To run a framework-dependent release:** [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) for Windows x64 (included with the SDK; the base .NET Runtime alone is not sufficient for WPF)
 * Microsoft Edge WebView2 Runtime (Pre-installed on modern Windows)
 
-### Build Standalone Executable
-Open PowerShell in the repository directory and run the following command to compile a single-file release executable:
+### Build and Run from Source
+Open PowerShell in the repository directory with the .NET 10 SDK installed:
+
+```powershell
+dotnet build -c Release
+dotnet run -c Release
+```
+
+### Publish a Single-File Executable
+Run the following command to publish a framework-dependent Windows x64 release:
 
 ```powershell
 dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
 ```
 
-The compiled standalone executable will be located at:
-`bin/Release/net10.0-windows/win-x64/publish/QuickText.exe`
+The published executable will be located at:
+`bin\Release\net10.0-windows\win-x64\publish\QuickText.exe`
+
+The destination machine must have the .NET 10 Desktop Runtime and WebView2 Runtime installed.
 
 ---
 
