@@ -6,6 +6,8 @@ const closeBtn = document.getElementById('close-btn');
 const titleBar = document.getElementById('title-bar');
 const linkBar = document.getElementById('link-bar');
 const measurer = document.getElementById('measurer');
+const windowFrame = document.getElementById('window-frame');
+let isCollapsed = false;
 
 const settingsPanel = document.getElementById('settings-panel');
 const closeSettingsBtn = document.getElementById('close-settings-btn');
@@ -42,12 +44,52 @@ function postToHost(data) {
 }
 
 // Window Dragging
+let dragStart = null;
+
+function isTitleBarControl(target) {
+  return target.closest('.btn, input, .switch');
+}
+
 titleBar.addEventListener('mousedown', (e) => {
-  const isButton = e.target.closest('.btn') || e.target.closest('input') || e.target.closest('.switch');
-  if (!isButton) {
+  if (e.button === 0 && !isTitleBarControl(e.target)) {
+    dragStart = { x: e.screenX, y: e.screenY };
+  }
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!dragStart) return;
+  if ((e.buttons & 1) === 0) {
+    dragStart = null;
+    return;
+  }
+  // Leave stationary clicks in WebView2 so it can recognize a double-click.
+  if (Math.abs(e.screenX - dragStart.x) >= 4 || Math.abs(e.screenY - dragStart.y) >= 4) {
+    dragStart = null;
     postToHost('drag');
   }
 });
+
+window.addEventListener('mouseup', () => { dragStart = null; });
+window.addEventListener('blur', () => { dragStart = null; });
+
+titleBar.addEventListener('dblclick', (e) => {
+  if (e.button !== 0 || isTitleBarControl(e.target)) return;
+  setCollapsed(!isCollapsed);
+});
+
+function setCollapsed(collapsed) {
+  isCollapsed = collapsed;
+  windowFrame.classList.toggle('collapsed', collapsed);
+  titleBar.title = collapsed
+    ? 'Drag to move; double-click to expand'
+    : 'Drag to move; double-click to collapse';
+  if (collapsed && settingsPanel.classList.contains('open')) {
+    toggleSettings();
+  } else {
+    triggerResize();
+  }
+  if (!collapsed) pad.focus();
+}
 
 // Close Application Button
 closeBtn.addEventListener('click', () => {
@@ -83,6 +125,7 @@ function opacityToSliderValue(opacity) {
 
 // Toggle settings modal
 function toggleSettings() {
+  if (isCollapsed && !settingsPanel.classList.contains('open')) setCollapsed(false);
   const isOpen = settingsPanel.classList.toggle('open');
   if (isOpen) {
     settingsBtn.classList.add('active');
@@ -395,10 +438,15 @@ function detectLinks() {
 
 // Dynamically resize window based on content scrollHeight
 function triggerResize() {
-  const titleHeight = titleBar.offsetHeight;
-  const linkHeight = linkBar.style.display !== 'none' ? linkBar.offsetHeight : 0;
-  
+  const titleHeight = titleBar.getBoundingClientRect().height;
   const width = settings.minWidth !== undefined ? settings.minWidth : 600;
+  if (isCollapsed) {
+    const frameStyle = getComputedStyle(windowFrame);
+    const borderHeight = parseFloat(frameStyle.borderTopWidth) + parseFloat(frameStyle.borderBottomWidth);
+    postToHost({ type: 'resize', width: width, height: titleHeight + borderHeight });
+    return;
+  }
+  const linkHeight = linkBar.style.display !== 'none' ? linkBar.offsetHeight : 0;
   
   // Set measurer width dynamically to match actual textarea width
   measurer.style.width = (width - 24) + 'px';
