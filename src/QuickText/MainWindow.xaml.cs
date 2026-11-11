@@ -65,6 +65,19 @@ public partial class MainWindow : Window
             ? custom
             : CultureInfo.CurrentUICulture.IetfLanguageTag;
         Pad.Language = XmlLanguage.GetLanguage(spellLanguage);
+        ApplyNoteFont();
+        Pad.TextArea.Caret.CaretBrush = (Brush)FindResource("AccentBrush");
+        Pad.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(90, 226, 173, 59));
+        NoteFontPicker.ItemsSource = Fonts.SystemFontFamilies.Select(font => font.Source)
+            .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+        NoteFontPicker.SelectionChanged += (_, _) =>
+        {
+            if (_loadingUi || NoteFontPicker.SelectedItem is not string font) return;
+            _s.NoteFontFamily = font;
+            ApplyNoteFont();
+            MarkSettingsDirty();
+            UpdateHeight();
+        };
 
         _notes.Initialize();
         LoadCurrentNote();
@@ -75,7 +88,7 @@ public partial class MainWindow : Window
 
         Pad.ContextMenu = new ContextMenu();
         Pad.ContextMenuOpening += BuildContextMenu;
-        // A right click must not move the caret or change the selection, as in other apps. TextBox moves the caret
+        // A right click must not move the caret or change the selection, as in other apps. The editor moves the caret
         // itself, so remember where it was before the click and put it back when the menu closes.
         Pad.PreviewMouseRightButtonDown += (_, _) => _selectionBeforeRightClick = (Pad.SelectionStart, Pad.SelectionLength);
         Pad.ContextMenu.Opened += (_, _) => RestoreSelectionAfterRightClick();
@@ -349,6 +362,7 @@ public partial class MainWindow : Window
     private void OnTextChanged()
     {
         if (_loadingNote) return;
+        PlaceholderPanel.Visibility = Pad.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
         _notes.UpdateText(_notes.CurrentFileName, Pad.Text, false);
         RebuildLinks();
         UpdateHeight();
@@ -381,8 +395,8 @@ public partial class MainWindow : Window
             NotePicker.ItemsSource = _notes.ListNotes();
             NotePicker.SelectedItem = _notes.CurrentFileName;
             Pad.Text = _notes.CurrentText;
-            Pad.IsUndoEnabled = false;
-            Pad.IsUndoEnabled = true;
+            PlaceholderPanel.Visibility = Pad.Text.Length == 0 ? Visibility.Visible : Visibility.Collapsed;
+            Pad.Document.UndoStack.ClearAll();
             Pad.CaretIndex = Pad.Text.Length;
             Pad.ScrollToHome();
             _selectionBeforeRightClick = null;
@@ -469,8 +483,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// The built-in TextBox menu ignores our styles and shows up white. This one is built by hand
-    /// (spelling suggestions first, then the usual clipboard commands) so it matches the app.
+    /// Build a themed menu with Windows spelling suggestions before the clipboard commands.
     /// </summary>
     private void BuildContextMenu(object sender, ContextMenuEventArgs e)
     {
@@ -478,9 +491,7 @@ public partial class MainWindow : Window
         menu.Items.Clear();
 
         // Find the word under the pointer without touching the caret or the selection, like other apps do.
-        // CursorLeft/CursorTop are relative to the inner text element, not to the TextBox, so the hit test
-        // used to land a few characters to the left; the mouse position relative to the TextBox is what
-        // GetCharacterIndexFromPoint expects. A negative CursorLeft means the menu key was used: then the caret decides.
+        // Use editor coordinates for hit testing; a keyboard-opened menu uses the caret.
         int index = Pad.CaretIndex;
         if (e.CursorLeft >= 0)
             index = Pad.GetCharacterIndexFromPoint(Mouse.GetPosition(Pad), false); // -1 when the pointer is not over text
@@ -488,7 +499,6 @@ public partial class MainWindow : Window
         SpellingError? error = index >= 0 && index <= Pad.Text.Length ? Pad.GetSpellingError(index) : null;
         if (error is SpellingError spelling)
         {
-            // Correct and IgnoreAll work on the error itself, so nothing has to be moved to the clicked word first.
             int wordStart = Pad.GetSpellingErrorStart(index);
             int wordLength = Pad.GetSpellingErrorLength(index);
 
@@ -497,22 +507,22 @@ public partial class MainWindow : Window
             {
                 any = true;
                 var item = new MenuItem { Header = suggestion, FontWeight = FontWeights.SemiBold };
-                item.Click += (_, _) => CorrectKeepingCaret(spelling, suggestion, wordStart, wordLength);
+                item.Click += (_, _) => CorrectKeepingCaret(suggestion, wordStart, wordLength);
                 menu.Items.Add(item);
             }
             if (!any) menu.Items.Add(new MenuItem { Header = "(no suggestions)", IsEnabled = false });
 
             var ignore = new MenuItem { Header = "Ignore all" };
-            ignore.Click += (_, _) => spelling.IgnoreAll();
+            ignore.Click += (_, _) => Pad.IgnoreSpellingError(spelling);
             menu.Items.Add(ignore);
             menu.Items.Add(new Separator());
         }
 
-        menu.Items.Add(new MenuItem { Header = "Cut", Command = ApplicationCommands.Cut, CommandTarget = Pad });
-        menu.Items.Add(new MenuItem { Header = "Copy", Command = ApplicationCommands.Copy, CommandTarget = Pad });
-        menu.Items.Add(new MenuItem { Header = "Paste", Command = ApplicationCommands.Paste, CommandTarget = Pad });
+        menu.Items.Add(new MenuItem { Header = "Cut", Command = ApplicationCommands.Cut, CommandTarget = Pad.TextArea });
+        menu.Items.Add(new MenuItem { Header = "Copy", Command = ApplicationCommands.Copy, CommandTarget = Pad.TextArea });
+        menu.Items.Add(new MenuItem { Header = "Paste", Command = ApplicationCommands.Paste, CommandTarget = Pad.TextArea });
         menu.Items.Add(new Separator());
-        menu.Items.Add(new MenuItem { Header = "Select all", Command = ApplicationCommands.SelectAll, CommandTarget = Pad });
+        menu.Items.Add(new MenuItem { Header = "Select all", Command = ApplicationCommands.SelectAll, CommandTarget = Pad.TextArea });
     }
 
     private (int Start, int Length)? _selectionBeforeRightClick;
@@ -523,11 +533,11 @@ public partial class MainWindow : Window
         if (Pad.SelectionStart != start || Pad.SelectionLength != length) Pad.Select(start, length);
     }
 
-    /// <summary>SpellingError.Correct leaves the caret behind the corrected word; keep it where the user was typing instead.</summary>
-    private void CorrectKeepingCaret(SpellingError error, string replacement, int wordStart, int wordLength)
+    /// <summary>Correct a word without moving an unrelated selection or replacing the undo history.</summary>
+    private void CorrectKeepingCaret(string replacement, int wordStart, int wordLength)
     {
         var (selStart, selLength) = _selectionBeforeRightClick ?? (Pad.SelectionStart, Pad.SelectionLength);
-        error.Correct(replacement);
+        Pad.Document.Replace(wordStart, wordLength, replacement);
 
         bool touchesWord = selStart < wordStart + wordLength && selStart + selLength > wordStart;
         if (touchesWord) return; // the caret was inside the word: behind the corrected word is the natural place
@@ -642,10 +652,27 @@ public partial class MainWindow : Window
 
     // ---------- Settings panel ----------
 
+    private void ApplyNoteFont()
+    {
+        FontFamily? font = Fonts.SystemFontFamilies.FirstOrDefault(installed =>
+            string.Equals(installed.Source, _s.NoteFontFamily, StringComparison.OrdinalIgnoreCase));
+        if (font != null)
+        {
+            Pad.FontFamily = font;
+            FontNotice.Text = "";
+        }
+        else
+        {
+            Pad.FontFamily = new FontFamily("Segoe UI");
+            FontNotice.Text = $"'{_s.NoteFontFamily}' is not installed. Using Segoe UI until you select another font.";
+        }
+    }
+
     private void OpenSettings()
     {
         if (_collapsed) ToggleCollapsed();
         _loadingUi = true;
+        NoteFontPicker.SelectedItem = Pad.FontFamily.Source;
         AutosaveSwitch.IsChecked = _s.Autosave;
         AutostartSwitch.IsChecked = Autostart.IsEnabled;
         OpacitySlider.Value = PercentToPosition(_s.Opacity * 100);

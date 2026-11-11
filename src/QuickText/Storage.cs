@@ -7,6 +7,7 @@ namespace QuickText;
 public sealed class AppSettings
 {
     public bool Autosave { get; set; } = true;
+    public string NoteFontFamily { get; set; } = "Segoe UI";
     public string CopyHotkey { get; set; } = "CTRL+SHIFT+C";
     public string CloseHotkey { get; set; } = "ESCAPE";
     public string ExitHotkey { get; set; } = "CTRL+Q";
@@ -59,6 +60,7 @@ internal static class Storage
         settings.Opacity = double.IsFinite(settings.Opacity) ? Math.Clamp(settings.Opacity, 0.2, 1.0) : 1.0;
         if (!double.IsFinite(settings.Width) || settings.Width < 100) settings.Width = 520;
         if (!double.IsFinite(settings.Height) || settings.Height < 100) settings.Height = 280;
+        if (string.IsNullOrWhiteSpace(settings.NoteFontFamily)) settings.NoteFontFamily = "Segoe UI";
         return settings;
     }
 

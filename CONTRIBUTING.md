@@ -39,6 +39,8 @@ Both use temporary data directories and leave installed notes untouched.
 The native checks exercise control events and layout without showing the main
 window. Delete confirmation, Cancel, and close are tested in offscreen dialogs;
 unsaved-discard prompts and visual appearance still need manual verification.
+The same suite checks Markdown spans and code fences, editor undo/redo, native
+spell checking, and font selection/persistence without changing note content.
 
 ## Markdown
 

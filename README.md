@@ -28,8 +28,10 @@ selection marker, and migration process as that version.
 - **Instant:** a system-wide shortcut shows or hides the window from any app,
   `Ctrl+Shift+Space` by default.
 - **Quick Markdown notes:** create, switch, and delete notes from the title bar.
-  Edit the source text directly; Markdown rendering and highlighting are not
-  included.
+  Edit highlighted source text directly, including headings, lists, quotes,
+  emphasis, links, and inline/fenced code. Markdown is not rendered.
+- **Your note font:** choose an installed font in Settings. It applies immediately
+  to every note and is remembered across restarts without changing your files.
 - **Safe:** with autosave enabled, edits save to the selected note, including
   pending edits before switching. The selected note is restored on the next start.
 - **Links as pills:** URLs in your note show up at the bottom. Hover highlights
@@ -130,6 +132,13 @@ your saved expanded size.
 
 All shortcuts can be changed in the settings (gear icon): click a field, press the
 keys, Backspace clears it.
+
+Use **Settings > Note font** to select an installed font. The choice affects the
+editor only, not the toolbar or Settings. If the saved font is unavailable,
+QuickText explains the fallback to Segoe UI; select another font to replace it.
+Windows spelling suggestions and undo/redo remain available in the highlighted
+editor. Highlighting covers common Markdown syntax, not a full Markdown preview
+or language-specific highlighting inside code fences.
 
 | Action | Default | Works |
 | :--- | :--- | :--- |

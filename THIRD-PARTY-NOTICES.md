@@ -1,17 +1,19 @@
 # Third-party notices
 
-The self-contained `QuickText.exe` bundles the following Microsoft components.
+The self-contained `QuickText.exe` bundles the following components.
 QuickText itself is licensed under the MIT License (see `LICENSE`).
 
 | Component | Source | License |
 | :--- | :--- | :--- |
 | .NET runtime and base class libraries | [dotnet/runtime][runtime] | MIT |
 | Windows Presentation Foundation (WPF) | [dotnet/wpf][wpf] | MIT |
+| AvalonEdit 6.3.1.120 | [icsharpcode/AvalonEdit][avalonedit] | MIT |
 
 ```text
 The MIT License (MIT)
 
 Copyright (c) .NET Foundation and Contributors
+Copyright (c) 2014 AlphaSierraPapa for the SharpDevelop Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -38,3 +40,4 @@ for this project.
 
 [runtime]: https://github.com/dotnet/runtime
 [wpf]: https://github.com/dotnet/wpf
+[avalonedit]: https://github.com/icsharpcode/AvalonEdit
