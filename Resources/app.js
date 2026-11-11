@@ -88,7 +88,8 @@ function setCollapsed(collapsed) {
   } else {
     triggerResize();
   }
-  if (!collapsed) pad.focus();
+  // The host resizes asynchronously; focusing must not scroll the still-short frame.
+  if (!collapsed) pad.focus({ preventScroll: true });
 }
 
 // Close Application Button
