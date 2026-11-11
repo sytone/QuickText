@@ -349,14 +349,18 @@ noteSelect.addEventListener('change', () => requestNote({ type: 'select_note', n
 deleteNoteBtn.addEventListener('click', () => requestNote({ type: 'delete_note' }));
 
 // Copy action with animation
+let copyFeedbackTimeout;
+
 function triggerCopy() {
   if (!pad.value) return;
   postToHost({ type: 'copy', text: pad.value });
-  const originalText = copyBtn.textContent;
-  copyBtn.textContent = 'Copied';
+  clearTimeout(copyFeedbackTimeout);
+  copyBtn.title = 'Copied';
+  copyBtn.setAttribute('aria-label', 'Copied');
   copyBtn.classList.add('btn-success');
-  setTimeout(() => {
-    copyBtn.textContent = originalText;
+  copyFeedbackTimeout = setTimeout(() => {
+    copyBtn.title = 'Copy';
+    copyBtn.setAttribute('aria-label', 'Copy');
     copyBtn.classList.remove('btn-success');
   }, 1000);
 }
