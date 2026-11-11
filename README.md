@@ -12,7 +12,7 @@ Plain text, no account, no network.
 [Download](#download) | [Install or update](#install-or-update-from-source) |
 [Getting started](#getting-started) | [Changelog](CHANGELOG.md)
 
-![QuickText with a note, link pills, and Clear and Copy buttons][screenshot]
+![Upstream single-note interface before this fork's note toolbar changes][screenshot]
 
 QuickText is made for short, temporary notes: collecting text from several
 websites, rewriting a paragraph, drafting a prompt. It stays in the background,
@@ -20,16 +20,18 @@ uses about 70 MB while open and 20 to 30 MB while hidden.
 
 This fork uses the native WPF baseline from [BlazeR-28/QuickText][upstream].
 The earlier customized WebView2 version is preserved on the [BACKUP branch][backup].
-Its Markdown note library and other customizations have not yet been ported.
+The Markdown note library is now ported to native WPF using the same files,
+selection marker, and migration process as that version.
 
 ## Features
 
 - **Instant:** a system-wide shortcut shows or hides the window from any app,
   `Ctrl+Shift+Space` by default.
-- **Plain text only:** no tabs, no history, no search. Pasted text arrives without
-  formatting.
-- **Safe:** with autosave enabled, the note is saved as you type and restored on
-  the next start. Clear can be undone with `Ctrl+Z`.
+- **Quick Markdown notes:** create, switch, and delete notes from the title bar.
+  Edit the source text directly; Markdown rendering and highlighting are not
+  included.
+- **Safe:** with autosave enabled, edits save to the selected note, including
+  pending edits before switching. The selected note is restored on the next start.
 - **Links as pills:** URLs in your note show up at the bottom. Hover highlights
   the link in the text, a click opens it in your browser.
 - **Spell checking** with suggestions in the right-click menu.
@@ -99,12 +101,26 @@ if you also want to permanently remove your notes and settings.
 
 1. Start QuickText. A tray icon appears in the notification area. On Windows 11
    new icons first sit under the arrow, drag it out to keep it visible.
-2. Type or paste. Press **Copy** when you are done.
-3. Press **Esc** or the minus button to hide the window. Press **Ctrl+Shift+Space**
+2. Type or paste. Use the document-copy icon to copy the whole note.
+3. Press **Esc** or the **X** button to hide the window. Press **Ctrl+Shift+Space**
    or click the tray icon to bring it back.
 4. Quit with **Ctrl+Q**, the tray menu, or the settings.
 
 Starting the app a second time just brings the running window to the front.
+
+### Managing notes
+
+- The **New** icon creates and selects an empty `note-YYYY-MM-DD-HH-MM-SS.md`.
+  Rapid clicks still produce unique filenames without overwriting notes.
+- The dropdown selects the note being viewed, edited, and autosaved. Notes are
+  sorted by filename, newest first. Pending autosave edits are flushed before
+  creating or switching notes.
+- The trash icon asks before permanently deleting the selected note, then opens
+  the newest remaining note. Deleting the last note creates an empty replacement.
+- Turning autosave off never deletes saved files. Unsaved drafts require
+  confirmation before switching, creating, deleting, or quitting. Turning
+  autosave back on saves the current draft.
+- File access failures are reported without silently discarding the open draft.
 
 All shortcuts can be changed in the settings (gear icon): click a field, press the
 keys, Backspace clears it.
@@ -125,11 +141,15 @@ still works.
 
 ## Your data
 
-Everything lives in `%LOCALAPPDATA%\QuickText`: `settings.json`, and `notes.txt`
-while autosave is on. Turning autosave off deletes `notes.txt`.
+Everything lives in `%LOCALAPPDATA%\QuickText`: `settings.json`, Markdown notes
+named `note-YYYY-MM-DD-HH-MM-SS.md`, and `active-note.txt`, which remembers the
+selected note across restarts.
 
-The native app uses one plain-text note. Markdown notes from the earlier
-WebView2 fork remain on disk, but are not loaded or migrated by this version.
+Existing Markdown notes and the selected filename from the WebView2 fork work
+unchanged. On first use, if there are no Markdown notes or selection marker,
+`notes.txt` is imported into a Markdown note and retained unchanged as a backup.
+Only correctly timestamped note files appear in the dropdown; unrelated Markdown
+files are left alone.
 
 - `QUICKTEXT_DATA_DIR` moves that folder, for example next to the exe on a USB stick.
 - Spell checking follows your Windows display language.
@@ -167,7 +187,8 @@ APIs directly.
 ## Contributing
 
 Bug reports and small, focused pull requests are welcome. QuickText is deliberately
-small, so features such as tabs or rich text are out of scope. Please read
+small; the native Markdown library builds on this fork's previous workflow.
+Please read
 [CONTRIBUTING.md](CONTRIBUTING.md) first. Security problems go through
 [SECURITY.md](SECURITY.md).
 

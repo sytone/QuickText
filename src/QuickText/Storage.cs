@@ -33,7 +33,7 @@ internal static class Storage
 #endif
 
     private static string SettingsPath => Path.Combine(Dir, "settings.json");
-    private static string NotePath => Path.Combine(Dir, "notes.txt");
+    public static NoteStore CreateNoteStore() => new(Dir);
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -64,28 +64,6 @@ internal static class Storage
 
     public static void SaveSettings(AppSettings settings) =>
         AtomicWrite(SettingsPath, JsonSerializer.Serialize(settings, Json));
-
-    public static string LoadNote()
-    {
-        try { return File.Exists(NotePath) ? File.ReadAllText(NotePath) : ""; }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to load note: {ex.Message}");
-            return "";
-        }
-    }
-
-    public static void SaveNote(string text)
-    {
-        if (text.Length == 0) DeleteNote();
-        else AtomicWrite(NotePath, text);
-    }
-
-    public static void DeleteNote()
-    {
-        try { if (File.Exists(NotePath)) File.Delete(NotePath); }
-        catch (Exception ex) { Debug.WriteLine($"Failed to delete note: {ex.Message}"); }
-    }
 
     // Write to a temp file first so a crash mid-write can never leave a half-written note.
     private static void AtomicWrite(string path, string content)

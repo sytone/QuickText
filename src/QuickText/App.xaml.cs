@@ -1,4 +1,5 @@
 using System.Windows;
+using System.IO;
 
 namespace QuickText;
 
@@ -57,7 +58,19 @@ public partial class App : Application
         })
         { IsBackground = true }.Start();
 
-        var window = new MainWindow();
+        MainWindow window;
+        try
+        {
+            window = new MainWindow();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Storage.LogCrash(ex);
+            MessageBox.Show($"QuickText could not open its note files.\n\n{ex.Message}",
+                "Note file error", MessageBoxButton.OK, MessageBoxImage.Error);
+            Shutdown(1);
+            return;
+        }
         MainWindow = window;
 
         // Started by Windows at logon: create the window (hotkey and tray need it) but keep it hidden.

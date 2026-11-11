@@ -5,9 +5,9 @@ requests are welcome.
 
 ## Scope
 
-QuickText is deliberately small: one plain-text note, a global shortcut, low
-memory use. Features such as tabs, history, search or rich text are out of scope.
-If you are unsure whether an idea fits, open an issue first.
+QuickText is deliberately small: quick Markdown source notes, a global shortcut,
+and low memory use. Preserve compatibility with the earlier fork's note filenames
+and selected-note marker. If you are unsure whether an idea fits, open an issue.
 
 ## Building
 
@@ -20,6 +20,25 @@ dotnet run --project .\src\QuickText
 
 Debug builds keep their data in `%LOCALAPPDATA%\QuickText-dev`. Set
 `QUICKTEXT_DATA_DIR` to use any other folder; this also overrides Debug isolation.
+
+## Note workflow tests
+
+Run the reused note-store tests in PowerShell 7 or later:
+
+```powershell
+pwsh -NoProfile -File .\scripts\Test-NoteStore.ps1
+```
+
+Run the native WPF integration checks on Windows:
+
+```powershell
+dotnet run --project .\tests\QuickText.Notes.Tests -c Release
+```
+
+Both use temporary data directories and leave installed notes untouched.
+The native checks exercise control events and layout without showing the main
+window. Delete confirmation, Cancel, and close are tested in offscreen dialogs;
+unsaved-discard prompts and visual appearance still need manual verification.
 
 ## Markdown
 
