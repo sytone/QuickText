@@ -20,8 +20,13 @@ html, body {
   background-color: transparent;
   color: var(--fg);
   font-family: var(--font-family);
-  overflow: hidden;
+  overflow: clip;
   height: 100%;
+}
+
+body {
+  position: fixed;
+  inset: 0;
 }
 
 #window-frame {
@@ -35,7 +40,7 @@ html, body {
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-1);
-  overflow: hidden;
+  overflow: clip;
 }
 
 #title-bar {
@@ -49,6 +54,7 @@ html, body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   cursor: grab;
   user-select: none;
+  gap: 12px;
 }
 
 #title-bar:active {
@@ -63,10 +69,60 @@ html, body {
   color: var(--fg);
   opacity: 0.95;
   text-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
+  flex-shrink: 0;
   pointer-events: none;
+}
+
+.note-controls {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+  align-items: center;
+}
+
+#title-bar .btn {
+  min-width: 52px;
+  padding: 4px 8px;
+}
+
+#title-bar .icon-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 28px;
+  padding: 4px 6px;
+}
+
+#note-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 240px;
+  background: #1B1B21;
+  color: var(--fg);
+  color-scheme: dark;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  font: 11px var(--font-family);
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+
+#note-select:focus-visible {
+  outline: 1px solid var(--accent);
+}
+
+#title-bar .btn:disabled,
+#note-select:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 760px) {
+  .title-text {
+    display: none;
+  }
 }
 
 .btn {
@@ -99,10 +155,11 @@ html, body {
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding: 12px;
-  overflow: hidden;
+  overflow: clip;
   transition: opacity 0.3s ease;
 }
 
@@ -137,6 +194,7 @@ textarea {
   position: relative;
   z-index: 1;
   flex: 1;
+  min-height: 0;
   height: 100%;
   width: 100%;
   background: transparent;
@@ -150,6 +208,7 @@ textarea {
   padding-right: 6px;
   box-sizing: border-box;
   overflow-y: auto;
+  overscroll-behavior: contain;
   caret-color: var(--accent);
 }
 
@@ -221,10 +280,11 @@ textarea::selection {
   bottom: -100%;
   left: 0;
   width: 100%;
-  height: calc(100% - 37px); /* height below the title-bar */
+  height: calc(100% - var(--title-bar-height, 42px));
   background: rgba(14, 14, 18, 0.96);
   backdrop-filter: blur(25px);
-  transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: bottom 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0s linear 0.35s;
+  visibility: hidden;
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -232,10 +292,14 @@ textarea::selection {
   box-sizing: border-box;
   border-top: 1px solid var(--border);
   border-radius: 0 0 12px 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 #settings-panel.open {
   bottom: 0;
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .settings-header {
@@ -461,8 +525,8 @@ input:checked + .slider:before {
   margin-top: 12px;
 }
 
-/* Amber/Orange style for Clear Button */
-#clear-btn {
+/* Amber/Orange style for New Button */
+#new-btn {
   background: rgba(245, 158, 11, 0.05);
   border-color: rgba(245, 158, 11, 0.15);
   color: #FBBF24;

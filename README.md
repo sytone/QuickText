@@ -30,7 +30,7 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 
 - **Frosted Glassmorphism:** Fully transparent/translucent window styling utilizing Windows DWM composition.
 - **Slate-Purple Caret & Selection:** Custom-tailored text input styling matching the active theme color tokens.
-- **Flexbox Layout:** A fixed title bar and footer that remain visible, restricting scrollbars exclusively to the notepad text area.
+- **Flexbox Layout:** The title bar stays visible while the editor scrolls, including with Page Up/Down. Closed Settings controls are excluded from keyboard focus; opening Settings keeps its scrolling inside the panel.
 - **Watermark Branding:** A centered, low-opacity "made by BlazeR" footer that dynamically pushes upward when links are detected to avoid visual overlapping.
 
 ### ⚡ Native Performance & Windows Interop
@@ -38,16 +38,18 @@ The user interface implements a premium, desaturated slate-purple dark theme wit
 - **Win32 Layered Window Opacity:** Window transparency is handled natively via Win32 `SetLayeredWindowAttributes` by bypassing WPF's restrictive `AllowsTransparency="True"` mode (which conflicts with WebView2 input capture).
 - **Always-On-Top:** Native WPF topmost configuration keeps the scratchpad visible over other applications.
 - **Borderless Dragging:** Smooth window repositioning by clicking and dragging anywhere on the frosted background title bar.
-- **Collapsible Scratchpad:** Double-click the title bar background to collapse the window to just its toolbar; double-click again to restore the editor without losing text. Expanding returns focus to the editor while keeping the toolbar visible. Clear, Copy, and Close remain available while collapsed; Settings expands the window to show its panel. The collapsed bar stays draggable and temporarily bypasses the minimum editor height.
+- **Collapsible Scratchpad:** Double-click the title bar background to collapse the window to just its toolbar; double-click again to restore the editor without losing text. Expanding returns focus to the editor while keeping the toolbar visible. Note controls, Copy, and Close remain available while collapsed; Settings expands the window to show its panel. The collapsed bar stays draggable and temporarily bypasses the minimum editor height.
 - **Customizable Window Size Limits:** Automatically grows and shrinks the window height to match note length, bounded by user-defined minimum/maximum height and fixed width limits configured in the Settings panel via a clean 2x2 grid layout.
 - **System-wide Visibility Toggle:** Register a global hotkey to show or hide the scratchpad instantly from anywhere in Windows.
 
 ### 📝 Editor Utilities
 
-- **Autosave & Auto-Restore:** Notepad content is written to disk in real-time and automatically restored on next startup.
+- **Markdown Note Library:** New creates an empty `note-YYYY-MM-DD-HH-MM-SS.md` file. The dropdown lists notes by filename, newest first; selecting one opens it for editing. Rapid creation advances the timestamp by one second when necessary to avoid overwriting notes.
+- **Autosave & Auto-Restore:** With Autosave enabled, edits are written to the selected note in real time. The last selected note reopens after a restart. With Autosave disabled, switching notes, creating a note, or exiting warns before discarding unsaved edits; enabling it saves the current draft. Disabling Autosave does not delete saved files.
 - **Tab Insertion:** Intercepts the `Tab` key to insert literal `\t` characters instead of shifting focus to other UI controls.
 - **Copy Feedback:** Single-click Copy button with a temporary green success glow animation.
-- **Clear Animation:** Amber-styled Clear button with a success confirmation state that wipes content and shrinks the window back to its configured minimum height.
+- **Delete Notes:** The trash button confirms before permanently deleting the selected note, then opens the newest remaining note. Deleting the last note creates an empty replacement.
+- **Markdown Source:** Notes are plain Markdown files edited as text, not rendered previews. Syntax highlighting is not yet implemented.
 - **Reactive Link Pills:** Automatically scans your notes for URLs in real-time, displaying them as clickable pills at the bottom. Clicking a pill opens the URL in your default system browser.
 
 ---
@@ -99,7 +101,9 @@ To bypass the classic WPF "Airspace Conflict" (where hosting native controls lik
 QuickText operates completely offline and saves all settings and notes locally in the user's AppData directory:
 
 - **Settings File:** `%LOCALAPPDATA%\QuickText\settings.json` (stores hotkeys, autosave configuration, and opacity).
-- **Notes File:** `%LOCALAPPDATA%\QuickText\notes.txt` (stores notepad text if Autosave is enabled).
+- **Note Files:** `%LOCALAPPDATA%\QuickText\note-YYYY-MM-DD-HH-MM-SS.md` (local timestamp, 24-hour clock; each note is a separate Markdown file).
+- **Selected Note:** `%LOCALAPPDATA%\QuickText\active-note.txt` (remembers the selected filename across restarts).
+- **Legacy Backup:** Existing `%LOCALAPPDATA%\QuickText\notes.txt` content is imported into the first Markdown note on migration; the original is retained unchanged as a backup.
 - **WebView2 Cache:** `%LOCALAPPDATA%\QuickText\WebView2_Data\` (stores browser profile and storage cache).
 
 ---
@@ -120,6 +124,12 @@ Open PowerShell in the repository directory with the .NET 10 SDK installed:
 ```powershell
 dotnet build -c Release
 dotnet run -c Release
+```
+
+Storage regression checks can be run with PowerShell 7:
+
+```powershell
+pwsh -NoProfile -File .\scripts\Test-NoteStore.ps1
 ```
 
 ### Publish a Single-File Executable
