@@ -37,6 +37,9 @@ public partial class MainWindow : Window
     private IntPtr _hwnd;
     private TrayIcon? _tray;
     private double _baseHeight;
+    private bool _collapsed;
+    private double _expandedHeight, _expandedMinHeight;
+    private ResizeMode _expandedResizeMode;
     private bool _noteDirty, _settingsDirty, _settingsOpen, _loadingUi;
     private bool _loadingNote;
     private Button? _recording;
@@ -153,6 +156,11 @@ public partial class MainWindow : Window
 
         switch (msg)
         {
+            case NativeMethods.WM_NCLBUTTONDBLCLK when wParam.ToInt64() == NativeMethods.HTCAPTION:
+                ToggleCollapsed();
+                handled = true;
+                break;
+
             case NativeMethods.WM_HOTKEY when wParam.ToInt64() == GlobalHotkeyId:
                 Toggle();
                 handled = true;
@@ -178,7 +186,38 @@ public partial class MainWindow : Window
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
-        Pad.Focus();
+        if (!_collapsed) Pad.Focus();
+    }
+
+    private void ToggleCollapsed()
+    {
+        if (_collapsed)
+        {
+            _collapsed = false;
+            MinHeight = _expandedMinHeight;
+            ResizeMode = _expandedResizeMode;
+            EditorPanel.Visibility = Visibility.Visible;
+            PillPanel.Visibility = Visibility.Visible;
+            Height = _expandedHeight;
+            UpdateLayout();
+            UpdateHeight();
+            KeepOnScreen();
+            Pad.Focus();
+        }
+        else
+        {
+            if (_settingsOpen) CloseSettings();
+            _expandedHeight = Height;
+            _expandedMinHeight = MinHeight;
+            _expandedResizeMode = ResizeMode;
+            _collapsed = true;
+            Keyboard.ClearFocus();
+            EditorPanel.Visibility = Visibility.Collapsed;
+            PillPanel.Visibility = Visibility.Collapsed;
+            MinHeight = HeaderRow.Height.Value;
+            ResizeMode = ResizeMode.NoResize;
+            Height = HeaderRow.Height.Value;
+        }
     }
 
     private void Toggle()
@@ -280,7 +319,7 @@ public partial class MainWindow : Window
 
     private void OnUserMovedOrResized()
     {
-        if (!_settingsOpen) _baseHeight = ActualHeight;
+        if (!_settingsOpen && !_collapsed) _baseHeight = ActualHeight;
         CaptureGeometry();
         MarkSettingsDirty();
     }
@@ -288,7 +327,7 @@ public partial class MainWindow : Window
     /// <summary>Grows the window with the text up to 85% of the screen, and shrinks back to the user's own height.</summary>
     private void UpdateHeight()
     {
-        if (!IsLoaded) return;
+        if (!IsLoaded || _collapsed) return;
 
         Pad.UpdateLayout();
         Rect wa = WorkAreaDip();
@@ -404,7 +443,7 @@ public partial class MainWindow : Window
         if (changed)
         {
             LoadCurrentNote();
-            if (!_settingsOpen) Pad.Focus();
+            if (!_settingsOpen && !_collapsed) Pad.Focus();
         }
         else
         {
@@ -605,6 +644,7 @@ public partial class MainWindow : Window
 
     private void OpenSettings()
     {
+        if (_collapsed) ToggleCollapsed();
         _loadingUi = true;
         AutosaveSwitch.IsChecked = _s.Autosave;
         AutostartSwitch.IsChecked = Autostart.IsEnabled;

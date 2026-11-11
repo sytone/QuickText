@@ -8,6 +8,8 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Added
 
+- Restored title-bar double-click collapse/expand in native WPF, preserving the
+  expanded size, selected note, and autosave without new sizing settings.
 - Native WPF Markdown note library reusing the previous fork's note store:
   timestamped filenames, selected-note persistence, newest-first dropdown,
   legacy import, and confirmed deletion with an empty last-note replacement.

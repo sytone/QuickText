@@ -108,6 +108,12 @@ if you also want to permanently remove your notes and settings.
 
 Starting the app a second time just brings the running window to the front.
 
+Double-click the title or empty title-bar space to collapse to the toolbar;
+double-click again to expand. The note, selection, and pending autosave stay
+intact. Opening Settings expands the window. Manual resizing and automatic
+growth remain available when expanded; moving the collapsed bar does not replace
+your saved expanded size.
+
 ### Managing notes
 
 - The **New** icon creates and selects an empty `note-YYYY-MM-DD-HH-MM-SS.md`.
