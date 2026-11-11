@@ -13,6 +13,8 @@ All notable changes to QuickText are documented here. The format follows
   legacy import, and confirmed deletion with an empty last-note replacement.
 - Single-line toolbar: New, note dropdown, delete, centered QuickText title,
   settings, document-copy, and X icons.
+- App-themed delete confirmation with the selected filename, an explicit Delete
+  action, and Cancel as the keyboard default.
 - Storage regression tests and native WPF note workflow/layout checks.
 - Restored the per-user install/update script for the native WPF project, with
   graceful shutdown and registry-based startup.

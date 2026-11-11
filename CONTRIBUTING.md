@@ -36,8 +36,9 @@ dotnet run --project .\tests\QuickText.Notes.Tests -c Release
 ```
 
 Both use temporary data directories and leave installed notes untouched.
-The native checks exercise control events and layout without showing the window;
-deletion confirmation and unsaved-discard dialogs still need manual verification.
+The native checks exercise control events and layout without showing the main
+window. Delete confirmation, Cancel, and close are tested in offscreen dialogs;
+unsaved-discard prompts and visual appearance still need manual verification.
 
 ## Markdown
 

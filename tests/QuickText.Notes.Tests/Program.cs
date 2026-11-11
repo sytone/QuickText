@@ -56,6 +56,26 @@ internal static class Program
             Check(picker.Items.Cast<string>().SequenceEqual(new[] { second, first }), "Dropdown order is not newest first.");
 
             NoteStore store = Field<NoteStore>(window, "_notes");
+            foreach (string action in new[] { "CancelButton", "CloseButton", "DeleteButton" })
+            {
+                DeleteNoteDialog dialog = new(first)
+                {
+                    WindowStartupLocation = WindowStartupLocation.Manual,
+                    Left = -10000,
+                    Top = -10000,
+                    ShowActivated = false
+                };
+                Check(((TextBlock)dialog.FindName("FileNameLabel")).Text == first,
+                    "Delete dialog does not identify the selected note.");
+                Button cancel = (Button)dialog.FindName("CancelButton");
+                Check(cancel.IsCancel && cancel.IsDefault, "Delete dialog is not cancel-safe.");
+                dialog.Loaded += (_, _) =>
+                    ((Button)dialog.FindName(action)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Check((dialog.ShowDialog() == true) == (action == "DeleteButton"),
+                    $"{action} produced the wrong deletion confirmation.");
+                Check(File.Exists(Path.Combine(directory, first)) && store.CurrentFileName == first,
+                    "The confirmation dialog modified notes before the caller confirmed.");
+            }
             Invoke(window, "ChangeNote", (Action)store.DeleteCurrent);
             Check((string)picker.SelectedItem == second && pad.Text == "# Second pending edit",
                 "Deletion did not refresh the editor and select the newest note.");
@@ -109,7 +129,7 @@ internal static class Program
             Check(Control<Grid>(window, "EditorPanel").IsEnabled, "Closing Settings did not restore the editor.");
             window.Close();
             Check(File.ReadAllText(Path.Combine(directory, "notes.txt")) == "# Legacy backup", "Legacy backup changed.");
-            Console.WriteLine("PASS: native New/dropdown/autosave/delete/restart, undo isolation, autosave toggle, centered title and icons at 360-1920px, Settings focus isolation.");
+            Console.WriteLine("PASS: native New/dropdown/autosave/delete/restart, themed delete/cancel/close dialog, undo isolation, autosave toggle, centered title and icons at 360-1920px, Settings focus isolation.");
             return 0;
         }
         catch (Exception ex)

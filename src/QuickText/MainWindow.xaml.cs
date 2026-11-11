@@ -88,9 +88,8 @@ public partial class MainWindow : Window
         NewBtn.Click += (_, _) => ChangeNote(_notes.Create);
         DeleteBtn.Click += (_, _) =>
         {
-            if (MessageBox.Show(this, $"Permanently delete {_notes.CurrentFileName}?",
-                "Delete note", MessageBoxButton.YesNo, MessageBoxImage.Warning,
-                MessageBoxResult.No) == MessageBoxResult.Yes)
+            var confirmation = new DeleteNoteDialog(_notes.CurrentFileName) { Owner = this };
+            if (confirmation.ShowDialog() == true)
                 ChangeNote(_notes.DeleteCurrent);
         };
         NotePicker.SelectionChanged += (_, _) =>
