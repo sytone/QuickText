@@ -1,13 +1,14 @@
 # Third-party notices
 
-The self-contained `QuickText.exe` bundles the following Microsoft components. QuickText itself is licensed under the MIT License (see `LICENSE`).
+The self-contained `QuickText.exe` bundles the following Microsoft components.
+QuickText itself is licensed under the MIT License (see `LICENSE`).
 
 | Component | Source | License |
 | :--- | :--- | :--- |
-| .NET runtime and base class libraries | https://github.com/dotnet/runtime | MIT |
-| Windows Presentation Foundation (WPF) | https://github.com/dotnet/wpf | MIT |
+| .NET runtime and base class libraries | [dotnet/runtime][runtime] | MIT |
+| Windows Presentation Foundation (WPF) | [dotnet/wpf][wpf] | MIT |
 
-```
+```text
 The MIT License (MIT)
 
 Copyright (c) .NET Foundation and Contributors
@@ -31,4 +32,9 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-The Segoe UI fonts and Segoe Fluent Icons used by the interface are part of Windows and are not distributed with QuickText. The application icon was created for this project.
+The Segoe UI fonts and Segoe Fluent Icons used by the interface are part of
+Windows and are not distributed with QuickText. The application icon was created
+for this project.
+
+[runtime]: https://github.com/dotnet/runtime
+[wpf]: https://github.com/dotnet/wpf
