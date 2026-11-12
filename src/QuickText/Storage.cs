@@ -67,20 +67,13 @@ internal static class Storage
     public static void SaveSettings(AppSettings settings) =>
         AtomicWrite(SettingsPath, JsonSerializer.Serialize(settings, Json));
 
-    // Write to a temp file first so a crash mid-write can never leave a half-written note.
+    // Replace only after writing succeeds, keeping the previous settings on failure.
     private static void AtomicWrite(string path, string content)
     {
-        try
-        {
-            Directory.CreateDirectory(Dir);
-            string tmp = path + ".tmp";
-            File.WriteAllText(tmp, content);
-            File.Move(tmp, path, overwrite: true);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Failed to write {path}: {ex.Message}");
-        }
+        Directory.CreateDirectory(Dir);
+        string tmp = path + ".tmp";
+        File.WriteAllText(tmp, content);
+        File.Move(tmp, path, overwrite: true);
     }
 
     /// <summary>Appends an unexpected error to crash.log next to the settings, so users can attach it to a bug report.</summary>

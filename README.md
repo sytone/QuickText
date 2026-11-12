@@ -136,6 +136,10 @@ keys, Backspace clears it.
 Use **Settings > Note font** to select an installed font. The choice affects the
 editor only, not the toolbar or Settings. If the saved font is unavailable,
 QuickText explains the fallback to Segoe UI; select another font to replace it.
+If settings cannot be saved, a warning keeps the pending changes visible.
+QuickText retries automatically every five seconds while the file access problem
+persists. Changes remain active in the current session, and normal exit is paused
+until they are saved. Note saving continues independently.
 Windows spelling suggestions and undo/redo remain available in the highlighted
 editor. Spelling runs in the background after a short typing pause; underlines
 and suggestions appear when checking finishes without blocking scrolling.

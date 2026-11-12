@@ -27,6 +27,7 @@ public partial class MainWindow : Window
     private readonly NoteStore _notes = Storage.CreateNoteStore();
     private readonly GlobalHotkey _global = new();
     private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
+    private readonly DispatcherTimer _settingsRetryTimer = new() { Interval = TimeSpan.FromSeconds(5) };
     private readonly Dictionary<Button, int> _flashTokens = new();
     private readonly List<Button> _hotkeyButtons;
 
@@ -41,6 +42,7 @@ public partial class MainWindow : Window
     private double _expandedHeight, _expandedMinHeight;
     private ResizeMode _expandedResizeMode;
     private bool _noteDirty, _settingsDirty, _settingsOpen, _loadingUi;
+    private bool _settingsSaveFailed;
     private bool _loadingNote;
     private Button? _recording;
 
@@ -99,6 +101,7 @@ public partial class MainWindow : Window
         Pad.ContextMenu.Closed += (_, _) => Dispatcher.BeginInvoke(DispatcherPriority.Input, RestoreSelectionAfterRightClick);
         Pad.TextChanged += (_, _) => OnTextChanged();
         _saveTimer.Tick += (_, _) => { _saveTimer.Stop(); FlushSave(); };
+        _settingsRetryTimer.Tick += (_, _) => { _settingsRetryTimer.Stop(); FlushSave(); };
 
         SettingsBtn.Click += (_, _) => { if (_settingsOpen) CloseSettings(); else OpenSettings(); };
         DoneBtn.Click += (_, _) => CloseSettings();
@@ -215,6 +218,7 @@ public partial class MainWindow : Window
             ResizeMode = _expandedResizeMode;
             EditorPanel.Visibility = Visibility.Visible;
             PillPanel.Visibility = Visibility.Visible;
+            SettingsSaveNotice.Visibility = _settingsSaveFailed ? Visibility.Visible : Visibility.Collapsed;
             Height = _expandedHeight;
             UpdateLayout();
             UpdateHeight();
@@ -231,6 +235,7 @@ public partial class MainWindow : Window
             Keyboard.ClearFocus();
             EditorPanel.Visibility = Visibility.Collapsed;
             PillPanel.Visibility = Visibility.Collapsed;
+            SettingsSaveNotice.Visibility = Visibility.Collapsed;
             MinHeight = HeaderRow.Height.Value;
             ResizeMode = ResizeMode.NoResize;
             Height = HeaderRow.Height.Value;
@@ -275,10 +280,17 @@ public partial class MainWindow : Window
             return;
         }
         _saveTimer.Stop();
+        _settingsRetryTimer.Stop();
         CaptureGeometry();
         _noteDirty = _s.Autosave;
         _settingsDirty = true;
         FlushSave();
+        if (_settingsDirty)
+        {
+            e.Cancel = true;
+            ShowAndActivate();
+            return;
+        }
         _global.Unregister();
         _tray?.Dispose();
     }
@@ -660,8 +672,26 @@ public partial class MainWindow : Window
         }
         if (_settingsDirty)
         {
-            Storage.SaveSettings(_s);
-            _settingsDirty = false;
+            try
+            {
+                Storage.SaveSettings(_s);
+                _settingsDirty = false;
+                _settingsSaveFailed = false;
+                _settingsRetryTimer.Stop();
+                SettingsSaveNotice.Visibility = Visibility.Collapsed;
+                SettingsSaveError.Text = "";
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (!_settingsSaveFailed) Storage.LogCrash(ex);
+                _settingsSaveFailed = true;
+                SettingsSaveError.Text = "Settings could not be saved. Your changes are still active in this " +
+                    "session. Resolve the file access problem; QuickText will retry automatically. " +
+                    "Exit is paused until settings are saved.\n\n" + ex.Message;
+                if (_collapsed) ToggleCollapsed();
+                SettingsSaveNotice.Visibility = Visibility.Visible;
+                if (!_settingsRetryTimer.IsEnabled) _settingsRetryTimer.Start();
+            }
         }
     }
 

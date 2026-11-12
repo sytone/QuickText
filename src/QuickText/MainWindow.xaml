@@ -84,6 +84,7 @@
             <RowDefinition x:Name="HeaderRow" Height="40"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid Grid.Row="0" Margin="8,0" ToolTip="Double-click the title bar to collapse or expand">
@@ -241,5 +242,11 @@
                 </StackPanel>
             </ScrollViewer>
         </Grid>
+        <Border x:Name="SettingsSaveNotice" Grid.Row="3" Visibility="Collapsed"
+                Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource DangerBrush}"
+                BorderThickness="1" CornerRadius="4" Margin="8,4,8,8" Padding="8">
+            <TextBlock x:Name="SettingsSaveError" TextWrapping="Wrap" FontSize="11"
+                       Foreground="{StaticResource DangerBrush}"/>
+        </Border>
     </Grid>
 </Window>

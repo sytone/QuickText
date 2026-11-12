@@ -163,6 +163,7 @@ internal static class Program
             Invoke(window, "ApplyNoteFont");
             Invoke(window, "CloseSettings");
             Check(Control<Grid>(window, "EditorPanel").IsEnabled, "Closing Settings did not restore the editor.");
+            CheckSettingsSaveRecovery(window, directory);
             double expandedHeight = window.Height;
             double minimumHeight = window.MinHeight;
             double baseHeight = Field<double>(window, "_baseHeight");
@@ -210,7 +211,7 @@ internal static class Program
                 "The native caption message maximized instead of expanding.");
             window.Close();
             Check(File.ReadAllText(Path.Combine(directory, "notes.txt")) == "# Legacy backup", "Legacy backup changed.");
-            Console.WriteLine("PASS: Markdown spans/fences, native spelling and corrections, font selection/persistence/fallback, native notes, themed confirmation, toolbar layout, collapse/expand and Settings transitions.");
+            Console.WriteLine("PASS: Markdown spans/fences, native spelling and corrections, font selection/persistence/fallback, settings save failure/retry, native notes, themed confirmation, toolbar layout, collapse/expand and Settings transitions.");
             return 0;
         }
         catch (Exception ex)
@@ -227,6 +228,50 @@ internal static class Program
 
     private static T Control<T>(MainWindow window, string name) where T : FrameworkElement =>
         (T)window.FindName(name);
+
+    private static void CheckSettingsSaveRecovery(MainWindow window, string directory)
+    {
+        window.SaveNow();
+        string settingsPath = Path.Combine(directory, "settings.json");
+        string original = File.ReadAllText(settingsPath);
+        AppSettings settings = Field<AppSettings>(window, "_s");
+        settings.Opacity = 0.85;
+        MarkdownEditor pad = Control<MarkdownEditor>(window, "Pad");
+        pad.Text = "# Note saves even when settings fail";
+        foreach (string blockedPath in new[] { settingsPath + ".tmp", settingsPath })
+        using (FileStream blocked = new(blockedPath, FileMode.OpenOrCreate,
+                   FileAccess.Read, FileShare.Read))
+        {
+            Invoke(window, "MarkSettingsDirty");
+            Invoke(window, "FlushSave");
+            Check(Field<bool>(window, "_settingsDirty"), "Failed settings save was marked clean.");
+            Check(Control<Border>(window, "SettingsSaveNotice").Visibility == Visibility.Visible &&
+                Control<TextBlock>(window, "SettingsSaveError").Text.Contains("retry automatically"),
+                "Settings save failure was not visibly explained.");
+            Check(File.ReadAllText(settingsPath) == original, "Failed write damaged saved settings.");
+            Check(File.ReadAllText(Path.Combine(directory, Field<NoteStore>(window, "_notes").CurrentFileName)) == pad.Text,
+                "A settings failure prevented note saving.");
+            Check(Field<DispatcherTimer>(window, "_settingsRetryTimer").IsEnabled, "Settings retry was not scheduled.");
+            string log = File.ReadAllText(Path.Combine(directory, "crash.log"));
+            Invoke(window, "FlushSave");
+            Check(File.ReadAllText(Path.Combine(directory, "crash.log")) == log,
+                "Repeated retries logged the same failure repeatedly.");
+            System.ComponentModel.CancelEventArgs closing = new();
+            Invoke(window, "OnClosing", closing);
+            Check(closing.Cancel && Field<bool>(window, "_settingsDirty"),
+                "Exit discarded settings that could not be saved.");
+        }
+        Stopwatch timeout = Stopwatch.StartNew();
+        while (Field<bool>(window, "_settingsDirty") && timeout.Elapsed < TimeSpan.FromSeconds(8))
+            PumpDispatcher();
+        Check(!Field<bool>(window, "_settingsDirty"), "Settings did not retry after access was restored.");
+        Check(Control<Border>(window, "SettingsSaveNotice").Visibility == Visibility.Collapsed &&
+            Control<TextBlock>(window, "SettingsSaveError").Text == "",
+            "Successful retry did not clear the error.");
+        using var saved = System.Text.Json.JsonDocument.Parse(File.ReadAllText(settingsPath));
+        Check(saved.RootElement.GetProperty("opacity").GetDouble() == 0.85,
+            "Retry did not persist the pending settings.");
+    }
 
     private static T Field<T>(MainWindow window, string name) =>
         (T)typeof(MainWindow).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
