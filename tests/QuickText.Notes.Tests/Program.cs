@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -14,7 +15,7 @@ using ICSharpCode.AvalonEdit.Highlighting;
 internal static class Program
 {
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
         string directory = Path.Combine(Path.GetTempPath(), "QuickText-ui-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -38,6 +39,7 @@ internal static class Program
             string first = (string)picker.SelectedItem;
             Check(pad.Text == "# Legacy backup", "Legacy import did not reach the editor.");
             CheckHighlighting(pad);
+            CheckEditorResponsiveness(pad, args.Length == 1 ? File.ReadAllText(args[0]) : null);
             pad.Text = "# Legacy backup";
             pad.Document.UndoStack.ClearAll();
             pad.Text = "# First pending edit";
@@ -287,6 +289,7 @@ internal static class Program
                 "Heading syntax leaked into fenced code.");
         }
         Check(editor.Text == source, "Highlighting changed Markdown source.");
+        WaitForSpelling(editor);
         editor.Measure(new Size(640, 280));
         editor.Arrange(new Rect(0, 0, 640, 280));
         editor.UpdateLayout();
@@ -305,6 +308,7 @@ internal static class Program
         editor.Redo();
         Check(editor.Text.EndsWith("\nMore source"), "Highlighting broke text redo.");
         editor.Text = "hello spelinggg\nanother spelinggg";
+        WaitForSpelling(editor);
         Check(editor.GetSpellingError(8) is not null &&
             editor.GetSpellingErrorStart(8) == 6 && editor.GetSpellingErrorLength(8) == 9,
             "The editor did not retain Windows spelling errors and offsets.");
@@ -312,9 +316,62 @@ internal static class Program
         Check(editor.Text == "hello spelling\nanother spelinggg", "Spelling correction changed unrelated text.");
         editor.Undo();
         Check(editor.Text == "hello spelinggg\nanother spelinggg", "Spelling correction cannot be undone.");
+        WaitForSpelling(editor);
         var error = editor.GetSpellingError(8)!;
         editor.IgnoreSpellingError(error);
         Check(editor.GetSpellingError(8) is null, "Ignore all did not update native spelling.");
+    }
+
+    private static void WaitForSpelling(MarkdownEditor editor)
+    {
+        Stopwatch timer = Stopwatch.StartNew();
+        while (editor.IsSpellingPending && timer.Elapsed < TimeSpan.FromSeconds(15))
+            PumpDispatcher();
+        Check(!editor.IsSpellingPending, "Background spelling did not finish within 15 seconds.");
+    }
+
+    private static void PumpDispatcher()
+    {
+        DispatcherFrame frame = new();
+        Dispatcher.CurrentDispatcher.BeginInvoke(() => frame.Continue = false,
+            DispatcherPriority.ApplicationIdle);
+        Dispatcher.PushFrame(frame);
+    }
+
+    private static void CheckEditorResponsiveness(MarkdownEditor editor, string? sample)
+    {
+        sample ??= string.Concat(Enumerable.Repeat(
+            "# A heading\n\n- A task with **bold text** and a [link](https://example.com)\n" +
+            "> A quotation\n\n```text\nSome source code\n```\n\n", 120));
+        Stopwatch elapsed = Stopwatch.StartNew();
+        editor.Text = sample;
+        editor.Measure(new Size(640, 280));
+        editor.Arrange(new Rect(0, 0, 640, 280));
+        editor.UpdateLayout();
+        editor.TextArea.TextView.EnsureVisualLines();
+        TimeSpan pasteTime = elapsed.Elapsed;
+        Check(pasteTime < TimeSpan.FromSeconds(2), $"Paste/layout blocked for {pasteTime}.");
+        // Let debouncing start the worker before measuring scrolling and message pumping.
+        DrainAutosave();
+        elapsed.Restart();
+        for (int step = 0; step < 30; step++)
+        {
+            editor.ScrollToLine(1 + step * Math.Max(1, editor.Document.LineCount / 30));
+            editor.UpdateLayout();
+            editor.TextArea.TextView.EnsureVisualLines();
+            PumpDispatcher();
+        }
+        TimeSpan scrollTime = elapsed.Elapsed;
+        Check(scrollTime < TimeSpan.FromSeconds(3), $"Scrolling blocked for {scrollTime}.");
+        WaitForSpelling(editor);
+        // A superseded spelling request must not paint old offsets onto a new note.
+        editor.Text = string.Concat(Enumerable.Repeat("mispelllinggg ", 300));
+        DrainAutosave();
+        editor.Text = "hello";
+        WaitForSpelling(editor);
+        Check(editor.GetSpellingError(0) is null, "A stale spelling result was applied after replacing the note.");
+        Console.WriteLine($"PASS: {sample.Length} characters paste/layout {pasteTime.TotalMilliseconds:F0}ms (<2000ms), " +
+            $"30 scroll/layout steps {scrollTime.TotalMilliseconds:F0}ms (<3000ms), stale spelling rejected.");
     }
 
 }

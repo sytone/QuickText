@@ -41,6 +41,13 @@ window. Delete confirmation, Cancel, and close are tested in offscreen dialogs;
 unsaved-discard prompts and visual appearance still need manual verification.
 The same suite checks Markdown spans and code fences, editor undo/redo, native
 spell checking, and font selection/persistence without changing note content.
+It also checks paste/layout under two seconds and 30 scroll/layout steps under
+three seconds, plus rejecting superseded background spelling results. To run
+those checks with a local Markdown fixture instead of the generated sample:
+
+```powershell
+dotnet run --project .\tests\QuickText.Notes.Tests -c Release -- C:\path\sample.md
+```
 
 ## Markdown
 

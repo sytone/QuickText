@@ -65,6 +65,10 @@ public partial class MainWindow : Window
             ? custom
             : CultureInfo.CurrentUICulture.IetfLanguageTag;
         Pad.Language = XmlLanguage.GetLanguage(spellLanguage);
+        Pad.SpellingFailed += (_, _) => MessageBox.Show(this,
+            "Windows spell checking stopped. Markdown editing and saving still work. " +
+            "Details were written to crash.log; restart QuickText to retry.",
+            "Spell checking error", MessageBoxButton.OK, MessageBoxImage.Warning);
         ApplyNoteFont();
         Pad.TextArea.Caret.CaretBrush = (Brush)FindResource("AccentBrush");
         Pad.TextArea.SelectionBrush = new SolidColorBrush(Color.FromArgb(90, 226, 173, 59));
@@ -277,6 +281,12 @@ public partial class MainWindow : Window
         FlushSave();
         _global.Unregister();
         _tray?.Dispose();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        Pad.Dispose();
+        base.OnClosed(e);
     }
 
     /// <summary>Keeps every place that mentions the shortcuts (hint, tooltip, tray) in sync.</summary>
@@ -496,8 +506,8 @@ public partial class MainWindow : Window
         if (e.CursorLeft >= 0)
             index = Pad.GetCharacterIndexFromPoint(Mouse.GetPosition(Pad), false); // -1 when the pointer is not over text
 
-        SpellingError? error = index >= 0 && index <= Pad.Text.Length ? Pad.GetSpellingError(index) : null;
-        if (error is SpellingError spelling)
+        MarkdownEditor.SpellingIssue? error = index >= 0 && index <= Pad.Text.Length ? Pad.GetSpellingError(index) : null;
+        if (error is { } spelling)
         {
             int wordStart = Pad.GetSpellingErrorStart(index);
             int wordLength = Pad.GetSpellingErrorLength(index);
@@ -515,6 +525,11 @@ public partial class MainWindow : Window
             var ignore = new MenuItem { Header = "Ignore all" };
             ignore.Click += (_, _) => Pad.IgnoreSpellingError(spelling);
             menu.Items.Add(ignore);
+            menu.Items.Add(new Separator());
+        }
+        else if (Pad.IsSpellingPending)
+        {
+            menu.Items.Add(new MenuItem { Header = "Checking spelling...", IsEnabled = false });
             menu.Items.Add(new Separator());
         }
 

@@ -137,7 +137,9 @@ Use **Settings > Note font** to select an installed font. The choice affects the
 editor only, not the toolbar or Settings. If the saved font is unavailable,
 QuickText explains the fallback to Segoe UI; select another font to replace it.
 Windows spelling suggestions and undo/redo remain available in the highlighted
-editor. Highlighting covers common Markdown syntax, not a full Markdown preview
+editor. Spelling runs in the background after a short typing pause; underlines
+and suggestions appear when checking finishes without blocking scrolling.
+Highlighting covers common Markdown syntax, not a full Markdown preview
 or language-specific highlighting inside code fences.
 
 | Action | Default | Works |
