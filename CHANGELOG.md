@@ -41,6 +41,9 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Fixed
 
+- Settings-write failures now show a warning and keep changes pending for
+  automatic retry instead of silently marking them saved. Normal exit waits
+  for settings to save, while note saving remains independent.
 - Pasting or scrolling Markdown notes could freeze the UI while drawing spelling
   underlines. Superseded spelling results are now discarded when notes change.
 
