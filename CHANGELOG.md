@@ -8,6 +8,11 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Added
 
+- Markdown source highlighting for headings, lists/tasks, quotes, emphasis,
+  links, and inline/fenced code using the AvalonEdit editor.
+- Persistent note-font selection in Settings with immediate application and
+  an explained fallback when a saved font is no longer installed.
+- Windows spelling suggestions and underlines in the highlighted source editor.
 - Restored title-bar double-click collapse/expand in native WPF, preserving the
   expanded size, selected note, and autosave without new sizing settings.
 - Native WPF Markdown note library reusing the previous fork's note store:
@@ -24,10 +29,18 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Changed
 
+- Spell checking is debounced on a dedicated STA worker with cached word results;
+  painting and scrolling never run Windows full-document spelling scans.
+
 - Autosave targets the selected Markdown note and flushes before switching.
   Disabling autosave preserves files and warns before discarding drafts.
 - Updated the README for this fork's native baseline and installer.
 - Cleaned up Markdown formatting throughout the repository.
+
+### Fixed
+
+- Pasting or scrolling Markdown notes could freeze the UI while drawing spelling
+  underlines. Superseded spelling results are now discarded when notes change.
 
 ## [2.0.2] - 2026-11-03
 

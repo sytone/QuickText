@@ -1,4 +1,5 @@
 using System.IO;
+using System.Diagnostics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -9,11 +10,12 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
 using QuickText;
+using ICSharpCode.AvalonEdit.Highlighting;
 
 internal static class Program
 {
     [STAThread]
-    private static int Main()
+    private static int Main(string[] args)
     {
         string directory = Path.Combine(Path.GetTempPath(), "QuickText-ui-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -32,10 +34,14 @@ internal static class Program
         try
         {
             MainWindow window = new() { Left = 0, Top = 0 };
-            TextBox pad = Control<TextBox>(window, "Pad");
+            MarkdownEditor pad = Control<MarkdownEditor>(window, "Pad");
             ComboBox picker = Control<ComboBox>(window, "NotePicker");
             string first = (string)picker.SelectedItem;
             Check(pad.Text == "# Legacy backup", "Legacy import did not reach the editor.");
+            CheckHighlighting(pad);
+            CheckEditorResponsiveness(pad, args.Length == 1 ? File.ReadAllText(args[0]) : null);
+            pad.Text = "# Legacy backup";
+            pad.Document.UndoStack.ClearAll();
             pad.Text = "# First pending edit";
             Control<Button>(window, "NewBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             string second = (string)picker.SelectedItem;
@@ -99,7 +105,7 @@ internal static class Program
                 "Enabling autosave lost the draft.");
             MainWindow reopened = new() { Left = 0, Top = 0 };
             Check((string)Control<ComboBox>(reopened, "NotePicker").SelectedItem == replacement &&
-                Control<TextBox>(reopened, "Pad").Text == "# Unsaved draft", "Restart did not restore active note.");
+                Control<MarkdownEditor>(reopened, "Pad").Text == "# Unsaved draft", "Restart did not restore active note.");
             reopened.Close();
 
             foreach (double width in new[] { 360d, 520d, 760d, 1920d })
@@ -127,6 +133,34 @@ internal static class Program
             }
             Invoke(window, "OpenSettings");
             Check(!Control<Grid>(window, "EditorPanel").IsEnabled, "Settings leaves the editor focusable.");
+            ComboBox fontPicker = Control<ComboBox>(window, "NoteFontPicker");
+            string noteText = pad.Text;
+            pad.Select(2, 4);
+            bool couldUndo = pad.Document.UndoStack.CanUndo;
+            bool couldRedo = pad.Document.UndoStack.CanRedo;
+            string selectedFont = fontPicker.Items.Cast<string>()
+                .First(name => name != pad.FontFamily.Source);
+            fontPicker.SelectedItem = selectedFont;
+            Check(pad.FontFamily.Source == selectedFont &&
+                Field<AppSettings>(window, "_s").NoteFontFamily == selectedFont,
+                "Choosing a font did not update the editor and settings.");
+            Check(pad.Text == noteText && pad.SelectionStart == 2 && pad.SelectionLength == 4 &&
+                pad.Document.UndoStack.CanUndo == couldUndo &&
+                pad.Document.UndoStack.CanRedo == couldRedo,
+                "Changing the font changed source text, selection, or undo history.");
+            Check(window.FontFamily.Source != selectedFont, "Note font changed the application UI.");
+            window.SaveNow();
+            MainWindow fontRestored = new() { Left = 0, Top = 0 };
+            Check(Control<MarkdownEditor>(fontRestored, "Pad").FontFamily.Source == selectedFont,
+                "The note font was not restored after restart.");
+            fontRestored.Close();
+            Field<AppSettings>(window, "_s").NoteFontFamily = "QuickText Missing Font 49183";
+            Invoke(window, "ApplyNoteFont");
+            Check(pad.FontFamily.Source == "Segoe UI" &&
+                Control<TextBlock>(window, "FontNotice").Text.Contains("not installed"),
+                "An unavailable font was not explained with a usable fallback.");
+            Field<AppSettings>(window, "_s").NoteFontFamily = selectedFont;
+            Invoke(window, "ApplyNoteFont");
             Invoke(window, "CloseSettings");
             Check(Control<Grid>(window, "EditorPanel").IsEnabled, "Closing Settings did not restore the editor.");
             double expandedHeight = window.Height;
@@ -176,7 +210,7 @@ internal static class Program
                 "The native caption message maximized instead of expanding.");
             window.Close();
             Check(File.ReadAllText(Path.Combine(directory, "notes.txt")) == "# Legacy backup", "Legacy backup changed.");
-            Console.WriteLine("PASS: native notes, themed confirmation, toolbar layout, collapse/expand, saved expanded size, pending autosave, selection, and Settings transitions.");
+            Console.WriteLine("PASS: Markdown spans/fences, native spelling and corrections, font selection/persistence/fallback, native notes, themed confirmation, toolbar layout, collapse/expand and Settings transitions.");
             return 0;
         }
         catch (Exception ex)
@@ -233,6 +267,111 @@ internal static class Program
         timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
         timer.Start();
         Dispatcher.PushFrame(frame);
+    }
+
+    private static void CheckHighlighting(MarkdownEditor editor)
+    {
+        string source = "# Heading spelinggg\n- [x] Task\n> Quote\n`inline code`\n**strong** and *emphasis*\n" +
+            "[label](https://example.com)\n```text\n# literal heading\n```\n# Heading again";
+        editor.Text = source;
+        using (var highlighter = new DocumentHighlighter(editor.Document, editor.SyntaxHighlighting))
+        {
+            foreach (var (line, color) in new[]
+            {
+                (1, "Heading"), (2, "Marker"), (3, "Quote"), (4, "Code"),
+                (5, "Strong"), (5, "Emphasis"), (6, "Link"), (8, "Code"), (10, "Heading")
+            })
+            {
+                Check(highlighter.HighlightLine(line).Sections.Any(section => section.Color.Name == color),
+                    $"Markdown line {line} does not contain expected {color} highlighting.");
+            }
+            Check(!highlighter.HighlightLine(8).Sections.Any(section => section.Color.Name == "Heading"),
+                "Heading syntax leaked into fenced code.");
+        }
+        Check(editor.Text == source, "Highlighting changed Markdown source.");
+        WaitForSpelling(editor);
+        editor.Measure(new Size(640, 280));
+        editor.Arrange(new Rect(0, 0, 640, 280));
+        editor.UpdateLayout();
+        editor.TextArea.TextView.EnsureVisualLines();
+        Check(editor.TextArea.TextView.VisualLines.SelectMany(line => line.Elements).Any(element =>
+            element.TextRunProperties.ForegroundBrush is SolidColorBrush brush &&
+            brush.Color == Color.FromRgb(226, 173, 59)),
+            "The rendered editor did not apply the heading accent color.");
+        Check(editor.TextArea.TextView.VisualLines.SelectMany(line => line.Elements).Any(element =>
+            element.TextRunProperties.TextDecorations is { Count: > 0 }),
+            "Native spelling underlines were not rendered.");
+        editor.CaretIndex = editor.Text.Length;
+        editor.Document.Insert(editor.CaretIndex, "\nMore source");
+        editor.Undo();
+        Check(editor.Text == source, "Highlighting broke text undo.");
+        editor.Redo();
+        Check(editor.Text.EndsWith("\nMore source"), "Highlighting broke text redo.");
+        editor.Text = "hello spelinggg\nanother spelinggg";
+        WaitForSpelling(editor);
+        Check(editor.GetSpellingError(8) is not null &&
+            editor.GetSpellingErrorStart(8) == 6 && editor.GetSpellingErrorLength(8) == 9,
+            "The editor did not retain Windows spelling errors and offsets.");
+        editor.Document.Replace(6, 9, "spelling");
+        Check(editor.Text == "hello spelling\nanother spelinggg", "Spelling correction changed unrelated text.");
+        editor.Undo();
+        Check(editor.Text == "hello spelinggg\nanother spelinggg", "Spelling correction cannot be undone.");
+        WaitForSpelling(editor);
+        var error = editor.GetSpellingError(8)!;
+        editor.IgnoreSpellingError(error);
+        Check(editor.GetSpellingError(8) is null, "Ignore all did not update native spelling.");
+    }
+
+    private static void WaitForSpelling(MarkdownEditor editor)
+    {
+        Stopwatch timer = Stopwatch.StartNew();
+        while (editor.IsSpellingPending && timer.Elapsed < TimeSpan.FromSeconds(15))
+            PumpDispatcher();
+        Check(!editor.IsSpellingPending, "Background spelling did not finish within 15 seconds.");
+    }
+
+    private static void PumpDispatcher()
+    {
+        DispatcherFrame frame = new();
+        Dispatcher.CurrentDispatcher.BeginInvoke(() => frame.Continue = false,
+            DispatcherPriority.ApplicationIdle);
+        Dispatcher.PushFrame(frame);
+    }
+
+    private static void CheckEditorResponsiveness(MarkdownEditor editor, string? sample)
+    {
+        sample ??= string.Concat(Enumerable.Repeat(
+            "# A heading\n\n- A task with **bold text** and a [link](https://example.com)\n" +
+            "> A quotation\n\n```text\nSome source code\n```\n\n", 120));
+        Stopwatch elapsed = Stopwatch.StartNew();
+        editor.Text = sample;
+        editor.Measure(new Size(640, 280));
+        editor.Arrange(new Rect(0, 0, 640, 280));
+        editor.UpdateLayout();
+        editor.TextArea.TextView.EnsureVisualLines();
+        TimeSpan pasteTime = elapsed.Elapsed;
+        Check(pasteTime < TimeSpan.FromSeconds(2), $"Paste/layout blocked for {pasteTime}.");
+        // Let debouncing start the worker before measuring scrolling and message pumping.
+        DrainAutosave();
+        elapsed.Restart();
+        for (int step = 0; step < 30; step++)
+        {
+            editor.ScrollToLine(1 + step * Math.Max(1, editor.Document.LineCount / 30));
+            editor.UpdateLayout();
+            editor.TextArea.TextView.EnsureVisualLines();
+            PumpDispatcher();
+        }
+        TimeSpan scrollTime = elapsed.Elapsed;
+        Check(scrollTime < TimeSpan.FromSeconds(3), $"Scrolling blocked for {scrollTime}.");
+        WaitForSpelling(editor);
+        // A superseded spelling request must not paint old offsets onto a new note.
+        editor.Text = string.Concat(Enumerable.Repeat("mispelllinggg ", 300));
+        DrainAutosave();
+        editor.Text = "hello";
+        WaitForSpelling(editor);
+        Check(editor.GetSpellingError(0) is null, "A stale spelling result was applied after replacing the note.");
+        Console.WriteLine($"PASS: {sample.Length} characters paste/layout {pasteTime.TotalMilliseconds:F0}ms (<2000ms), " +
+            $"30 scroll/layout steps {scrollTime.TotalMilliseconds:F0}ms (<3000ms), stale spelling rejected.");
     }
 
 }
