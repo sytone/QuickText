@@ -9,6 +9,8 @@ internal static class NativeMethods
     public const int WM_STYLECHANGING = 0x007C;
     public const int WM_EXITSIZEMOVE = 0x0232;
     public const int WM_NCLBUTTONDBLCLK = 0x00A3;
+    public const int WM_LBUTTONDBLCLK = 0x0203;
+    public const int WM_DPICHANGED = 0x02E0;
     public const int HTCAPTION = 2;
 
     public const int GWL_EXSTYLE = -20;

@@ -32,6 +32,8 @@ selection marker, and migration process as that version.
   emphasis, links, and inline/fenced code. Markdown is not rendered.
 - **Your note font:** choose an installed font in Settings. It applies immediately
   to every note and is remembered across restarts without changing your files.
+- **Three sizes:** keep the full editor, collapse to the title bar, or use a
+  draggable always-on-top floating icon with your own image and square size.
 - **Safe:** with autosave enabled, edits save to the selected note, including
   pending edits before switching. The selected note is restored on the next start.
 - **Links as pills:** URLs in your note show up at the bottom. Hover highlights
@@ -110,11 +112,27 @@ if you also want to permanently remove your notes and settings.
 
 Starting the app a second time just brings the running window to the front.
 
-Double-click the title or empty title-bar space to collapse to the toolbar;
-double-click again to expand. The note, selection, and pending autosave stay
-intact. Opening Settings expands the window. Manual resizing and automatic
-growth remain available when expanded; moving the collapsed bar does not replace
-your saved expanded size.
+The two buttons immediately left of **X** make QuickText smaller:
+
+- The chevron beside **X** collapses to the title bar and expands it again.
+  Double-clicking the title or empty title-bar space does the same.
+- The square beside the chevron collapses to an always-on-top floating icon.
+  Drag the icon anywhere on the desktop; double-click it to restore the full
+  editor. The tray icon, global shortcut, or another launch also restores it.
+
+The note, selection, undo history, and pending autosave stay intact in both
+compact modes. Opening Settings expands the window. Moving the floating icon
+does not move the editor or replace its saved size; its own position is remembered.
+Manual resizing and automatic growth remain available when expanded.
+
+In **Settings > Floating icon**, choose a local ICO, PNG, JPEG, or BMP image, or
+select **Use app icon** to reset it. Images fit inside a square without distortion.
+The default size follows the current monitor's taskbar thickness, with a 48-pixel
+fallback for hidden taskbars. Turn off **Match taskbar size** to choose a square
+from 24 to 128 physical pixels. The floating icon stays opaque even if the editor
+is translucent. Image, size, and position choices survive restarts; the app starts
+with the editor available rather than trapping you in a compact mode.
+Unavailable or invalid images use the app icon with an explanation in Settings.
 
 ### Managing notes
 
@@ -160,8 +178,8 @@ still works.
 
 ![Settings with note font, autosave, startup, opacity, and shortcut controls][settings]
 
-The screenshots show a customized note font and global shortcut; the defaults
-are described above.
+The screenshots show a customized note font and global shortcut and predate the
+compact-mode controls; the current defaults and controls are described above.
 
 ## Your data
 
