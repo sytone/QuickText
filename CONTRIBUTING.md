@@ -36,9 +36,13 @@ dotnet run --project .\tests\QuickText.Notes.Tests -c Release
 ```
 
 Both use temporary data directories and leave installed notes untouched.
-The native checks exercise control events and layout without showing the main
-window. Delete confirmation, Cancel, and close are tested in offscreen dialogs;
+The native checks exercise control events and layout with isolated test data.
+Delete confirmation, Cancel, and close are tested in offscreen dialogs;
 unsaved-discard prompts and visual appearance still need manual verification.
+Floating-mode recovery checks briefly show the test window. They cover native
+double-click restore, square pixel sizing, independent editor/icon geometry,
+draft and undo preservation, image loading/fallback, settings persistence, and
+visible settings-save errors while compact.
 The same suite checks Markdown spans and code fences, editor undo/redo, native
 spell checking, and font selection/persistence without changing note content.
 It also checks paste/layout under two seconds and 30 scroll/layout steps under

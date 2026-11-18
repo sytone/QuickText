@@ -374,7 +374,7 @@ public partial class MainWindow : Window
             if (NativeMethods.GetMonitorInfo(monitor, ref info))
                 taskbar = Math.Max(info.rcMonitor.right - info.rcMonitor.left - (info.rcWork.right - info.rcWork.left),
                     info.rcMonitor.bottom - info.rcMonitor.top - (info.rcWork.bottom - info.rcWork.top));
-            pixels = taskbar is >= 24 and <= 128 ? taskbar : 48;
+            pixels = taskbar >= 24 ? taskbar : 48;
         }
         DpiScale dpi = VisualTreeHelper.GetDpi(this);
         Width = pixels / dpi.DpiScaleX;
