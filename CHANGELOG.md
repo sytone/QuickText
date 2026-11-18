@@ -36,8 +36,8 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Changed
 
-- Refreshed README screenshots to show the current note toolbar, Markdown
-  highlighting, and Settings with the note-font picker.
+- Refreshed README screenshots with sample Markdown, both compact-mode buttons,
+  and Settings showing the note-font picker and floating-icon options.
 - Spell checking is debounced on a dedicated STA worker with cached word results;
   painting and scrolling never run Windows full-document spelling scans.
 

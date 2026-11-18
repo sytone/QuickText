@@ -12,7 +12,7 @@ Plain text, no account, no network.
 [Download](#download) | [Install or update](#install-or-update-from-source) |
 [Getting started](#getting-started) | [Changelog](CHANGELOG.md)
 
-![QuickText with the note toolbar and highlighted Markdown source][screenshot]
+![QuickText with highlighted Markdown and title-bar and floating-icon buttons][screenshot]
 
 QuickText is made for short, temporary notes: collecting text from several
 websites, rewriting a paragraph, drafting a prompt. It stays in the background,
@@ -176,10 +176,10 @@ letter or `Ctrl+Alt+letter` (AltGr on many keyboard layouts). If another program
 already owns the system-wide shortcut, the settings say so, and the tray icon
 still works.
 
-![Settings with note font, autosave, startup, opacity, and shortcut controls][settings]
+![Settings with note font, autosave, startup, opacity, and floating-icon controls][settings]
 
-The screenshots show a customized note font and global shortcut and predate the
-compact-mode controls; the current defaults and controls are described above.
+The screenshots use sample text and the default floating-icon settings.
+Scroll down in Settings for the shortcut controls and exit button.
 
 ## Your data
 
