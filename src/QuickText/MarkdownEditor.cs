@@ -15,6 +15,7 @@ using System.Xml;
 
 namespace QuickText;
 
+/// <summary>Keeps Markdown editable as plain text while adding highlighting and non-blocking Windows spelling.</summary>
 public sealed class MarkdownEditor : TextEditor, IDisposable
 {
     private readonly DispatcherTimer _spellingDelay = new() { Interval = TimeSpan.FromMilliseconds(350) };
@@ -25,9 +26,12 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
     private bool _disposed;
     private bool _spellingAvailable = true;
 
+    /// <summary>Lets the window explain when spelling is unavailable without interrupting editing or saving.</summary>
     public event EventHandler<Exception>? SpellingFailed;
+    /// <summary>Distinguishes unfinished checks from a clean result for callers waiting on background spelling.</summary>
     public bool IsSpellingPending { get; private set; }
 
+    /// <summary>Connects highlighting and delayed spelling without making document painting wait for Windows.</summary>
     public MarkdownEditor()
     {
         using var stream = typeof(MarkdownEditor).Assembly.GetManifestResourceStream("QuickText.Resources.Markdown.xshd")
@@ -58,8 +62,10 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
         TextArea.TextView.LineTransformers.Add(new SpellingUnderlines(this));
     }
 
+    /// <summary>Gives note switching and context-menu recovery a common text-offset caret position.</summary>
     public int CaretIndex { get => CaretOffset; set => CaretOffset = value; }
 
+    /// <summary>Lets context menus target the pointed word without moving the caret or losing a selection.</summary>
     public int GetCharacterIndexFromPoint(Point point, bool snapToText)
     {
         var position = GetPositionFromPoint(point);
@@ -89,12 +95,16 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
         }, DispatcherPriority.Background);
     }
 
+    /// <summary>Reuses background results so opening a context menu never starts a blocking spelling scan.</summary>
     public SpellingIssue? GetSpellingError(int index) =>
         _issues.FirstOrDefault(issue => index >= issue.Start && index < issue.Start + issue.Length);
 
+    /// <summary>Anchors a correction to the reported word rather than the current caret.</summary>
     public int GetSpellingErrorStart(int index) => GetSpellingError(index)?.Start ?? -1;
+    /// <summary>Limits replacements to the reported word so adjacent source text remains intact.</summary>
     public int GetSpellingErrorLength(int index) => GetSpellingError(index)?.Length ?? 0;
 
+    /// <summary>Suppresses a chosen word for this editor session without changing system dictionaries.</summary>
     public void IgnoreSpellingError(SpellingIssue error)
     {
         _ignoredWords.Add(error.Word);
@@ -102,6 +112,7 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
         TextArea.TextView.Redraw();
     }
 
+    /// <summary>Stops timers and pending spelling work when the editor is no longer needed.</summary>
     public void Dispose()
     {
         if (_disposed) return;
@@ -111,6 +122,11 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
         _spelling.Dispose();
     }
 
+    /// <summary>Carries one immutable result from background spelling into rendering and correction menus.</summary>
+    /// <param name="Start">Anchors the result to the checked document snapshot.</param>
+    /// <param name="Length">Keeps highlighting and replacement inside the affected word.</param>
+    /// <param name="Word">Allows session-only ignore rules without rereading the document.</param>
+    /// <param name="Suggestions">Keeps menu construction independent of Windows spelling calls.</param>
     public sealed record SpellingIssue(int Start, int Length, string Word, IReadOnlyList<string> Suggestions);
 
     private sealed class SpellingUnderlines(MarkdownEditor editor) : DocumentColorizingTransformer
@@ -165,6 +181,7 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
         private int _revision;
         private bool _stopped;
 
+        /// <summary>Prevents an older document snapshot from publishing stale word positions.</summary>
         public void Invalidate(int revision)
         {
             lock (_gate)
@@ -174,6 +191,7 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
             }
         }
 
+        /// <summary>Replaces queued work with the latest snapshot so typing does not build a backlog.</summary>
         public void Check(int revision, string text, string language)
         {
             lock (_gate)
@@ -251,6 +269,7 @@ public sealed class MarkdownEditor : TextEditor, IDisposable
             }
         }
 
+        /// <summary>Wakes the worker so shutdown does not leave it waiting for another document.</summary>
         public void Dispose()
         {
             lock (_gate)

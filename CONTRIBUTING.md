@@ -63,6 +63,8 @@ still fail lint.
 
 ## Pull requests
 
+- Follow [AGENTS.md](AGENTS.md) for the shared development, commit, delivery,
+  and public API comment conventions.
 - Keep a change to one topic and describe what it does and how you tried it.
 - Follow the style of the surrounding code (nullable enabled, short comments
   that explain why).

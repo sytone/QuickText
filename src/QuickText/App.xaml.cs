@@ -3,6 +3,7 @@ using System.IO;
 
 namespace QuickText;
 
+/// <summary>Keeps one background instance alive so notes remain reachable through the tray and shortcut.</summary>
 public partial class App : Application
 {
 #if DEBUG
@@ -17,6 +18,7 @@ public partial class App : Application
     private bool _ownsMutex;
     private EventWaitHandle? _showEvent;
 
+    /// <summary>Establishes recovery and single-instance handling before opening any notes.</summary>
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -78,12 +80,14 @@ public partial class App : Application
         else window.Show();
     }
 
+    /// <summary>Protects pending edits when Windows ends the session without a normal window close.</summary>
     protected override void OnSessionEnding(SessionEndingCancelEventArgs e)
     {
         base.OnSessionEnding(e);
         (MainWindow as MainWindow)?.SaveNow(); // logoff / shutdown: do not rely on the window closing in time
     }
 
+    /// <summary>Releases instance ownership so a later launch can become the main app.</summary>
     protected override void OnExit(ExitEventArgs e)
     {
         if (_ownsMutex) _mutex?.ReleaseMutex();

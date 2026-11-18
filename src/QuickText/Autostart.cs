@@ -8,6 +8,7 @@ internal static class Autostart
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "QuickText";
 
+    /// <summary>Lets Settings reflect the real Windows startup entry rather than a stale local preference.</summary>
     public static bool IsEnabled
     {
         get
@@ -21,6 +22,7 @@ internal static class Autostart
         }
     }
 
+    /// <summary>Lets the UI report denied registry writes instead of claiming startup was changed.</summary>
     public static bool TrySet(bool enabled)
     {
         try
