@@ -80,6 +80,7 @@
     </shell:WindowChrome.WindowChrome>
 
     <Grid>
+    <Grid x:Name="MainPanel">
         <Grid.RowDefinitions>
             <RowDefinition x:Name="HeaderRow" Height="40"/>
             <RowDefinition Height="*"/>
@@ -120,9 +121,11 @@
             <StackPanel Grid.Column="2" Orientation="Horizontal"
                         HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button x:Name="SettingsBtn" Style="{StaticResource IconButton}"
+                        Width="26"
                         Content="&#xE713;" ToolTip="Settings" AutomationProperties.Name="Settings"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
                 <Button x:Name="CopyBtn" Style="{StaticResource IconButton}"
+                        Width="26"
                         ToolTip="Copy the whole note" AutomationProperties.Name="Copy note"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
                     <Viewbox Width="16" Height="16">
@@ -133,7 +136,21 @@
                         </Canvas>
                     </Viewbox>
                 </Button>
-                <Button x:Name="CloseBtn" Style="{StaticResource IconButton}" Content="&#xE711;"
+                <Button x:Name="FloatBtn" Style="{StaticResource IconButton}" Width="26"
+                        ToolTip="Collapse to a floating icon" AutomationProperties.Name="Collapse to floating icon"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Viewbox Width="16" Height="16">
+                        <Canvas Width="24" Height="24">
+                            <Path Data="M 4,4 L 20,4 L 20,20 L 4,20 Z M 9,9 L 15,9 L 15,15 L 9,15 Z"
+                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                  StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                        </Canvas>
+                    </Viewbox>
+                </Button>
+                <Button x:Name="CollapseBtn" Style="{StaticResource IconButton}" Content="&#xE70E;" Width="26"
+                        ToolTip="Collapse to title bar" AutomationProperties.Name="Collapse to title bar"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
+                <Button x:Name="CloseBtn" Style="{StaticResource IconButton}" Content="&#xE711;" Width="26"
                         AutomationProperties.Name="Hide window" Margin="2,0,0,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True"/>
             </StackPanel>
@@ -205,6 +222,24 @@
                     </Grid>
                     <Slider x:Name="OpacitySlider" Minimum="0" Maximum="100" Margin="0,0,0,18"/>
 
+                    <TextBlock Text="FLOATING ICON" FontSize="10" FontWeight="SemiBold"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8"/>
+                    <TextBlock x:Name="FloatingIconLabel" Text="App icon" TextTrimming="CharacterEllipsis"
+                               FontSize="12" Foreground="{StaticResource FgBrush}" Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button x:Name="ChooseFloatingIconBtn" Style="{StaticResource ChipButton}"
+                                Content="Choose image..." Margin="0,0,8,0"/>
+                        <Button x:Name="ResetFloatingIconBtn" Style="{StaticResource ChipButton}" Content="Use app icon"/>
+                    </StackPanel>
+                    <CheckBox x:Name="FloatingIconAutoSize" Content="Match taskbar size (default)"
+                              Foreground="{StaticResource FgBrush}" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="FloatingIconSizeLabel" FontSize="11"
+                               Foreground="{StaticResource MutedBrush}" Margin="0,0,0,4"/>
+                    <Slider x:Name="FloatingIconSizeSlider" Minimum="24" Maximum="128" TickFrequency="1"
+                            IsSnapToTickEnabled="True" AutomationProperties.Name="Floating icon size in pixels"/>
+                    <TextBlock x:Name="FloatingIconNotice" FontSize="11" TextWrapping="Wrap"
+                               Foreground="{StaticResource DangerBrush}" Margin="0,4,0,16"/>
+
                     <TextBlock Text="SHORTCUTS" FontSize="10" FontWeight="SemiBold"
                                Foreground="{StaticResource MutedBrush}" Margin="0,0,0,8"/>
                     <Grid Margin="0,0,0,8">
@@ -247,6 +282,14 @@
                 BorderThickness="1" CornerRadius="4" Margin="8,4,8,8" Padding="8">
             <TextBlock x:Name="SettingsSaveError" TextWrapping="Wrap" FontSize="11"
                        Foreground="{StaticResource DangerBrush}"/>
+        </Border>
+    </Grid>
+        <Border x:Name="FloatingIconPanel" Visibility="Collapsed" Background="{StaticResource Surface1}"
+                BorderBrush="{StaticResource LineBrush}" BorderThickness="1" CornerRadius="5"
+                ToolTip="Drag to move. Double-click to open QuickText." Cursor="SizeAll"
+                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                AutomationProperties.Name="QuickText floating icon">
+            <Image x:Name="FloatingIconImage" Margin="3" Stretch="Uniform" IsHitTestVisible="False"/>
         </Border>
     </Grid>
 </Window>

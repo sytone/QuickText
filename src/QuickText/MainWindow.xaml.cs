@@ -10,10 +10,14 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Markup;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shell;
 using System.Windows.Threading;
+using Microsoft.Win32;
 
 namespace QuickText;
 
+/// <summary>Keeps the note, compact views, and settings together so changing views never replaces a draft.</summary>
 public partial class MainWindow : Window
 {
     private const int GlobalHotkeyId = 9000;
@@ -39,6 +43,10 @@ public partial class MainWindow : Window
     private TrayIcon? _tray;
     private double _baseHeight;
     private bool _collapsed;
+    private bool _floating;
+    private Rect _floatingRestoreBounds;
+    private double _floatingRestoreMinWidth;
+    private Point? _floatingDragStart;
     private double _expandedHeight, _expandedMinHeight;
     private ResizeMode _expandedResizeMode;
     private bool _noteDirty, _settingsDirty, _settingsOpen, _loadingUi;
@@ -46,6 +54,7 @@ public partial class MainWindow : Window
     private bool _loadingNote;
     private Button? _recording;
 
+    /// <summary>Restores the user's workspace before connecting editing, saving, and recovery controls.</summary>
     public MainWindow()
     {
         InitializeComponent();
@@ -105,7 +114,48 @@ public partial class MainWindow : Window
 
         SettingsBtn.Click += (_, _) => { if (_settingsOpen) CloseSettings(); else OpenSettings(); };
         DoneBtn.Click += (_, _) => CloseSettings();
+        CollapseBtn.Click += (_, _) => ToggleCollapsed();
+        FloatBtn.Click += (_, _) => CollapseToFloatingIcon();
         CloseBtn.Click += (_, _) => HideWindow();
+        FloatingIconPanel.MouseLeftButtonDown += (_, e) =>
+        {
+            e.Handled = true;
+            if (e.ClickCount == 2) ShowAndActivate();
+            else _floatingDragStart = e.GetPosition(this);
+        };
+        FloatingIconPanel.MouseLeftButtonUp += (_, _) => _floatingDragStart = null;
+        FloatingIconPanel.MouseMove += (_, e) =>
+        {
+            if (e.LeftButton != MouseButtonState.Pressed)
+            {
+                _floatingDragStart = null;
+                return;
+            }
+            if (_floatingDragStart is not Point start) return;
+            Vector delta = e.GetPosition(this) - start;
+            if (Math.Abs(delta.X) < SystemParameters.MinimumHorizontalDragDistance &&
+                Math.Abs(delta.Y) < SystemParameters.MinimumVerticalDragDistance) return;
+            // Entering Windows' move loop on a plain click breaks double-click detection.
+            _floatingDragStart = null;
+            DragMove();
+        };
+        ChooseFloatingIconBtn.Click += (_, _) => ChooseFloatingIcon();
+        ResetFloatingIconBtn.Click += (_, _) =>
+        {
+            _s.FloatingIconPath = "";
+            FloatingIconImage.Source = Icon;
+            FloatingIconNotice.Text = "";
+            RefreshFloatingIconSettings();
+            MarkSettingsDirty();
+        };
+        FloatingIconAutoSize.Click += (_, _) => OnFloatingIconSizeChanged();
+        FloatingIconSizeSlider.ValueChanged += (_, _) => OnFloatingIconSizeChanged();
+        if (TryLoadFloatingIcon(_s.FloatingIconPath, out ImageSource? image)) FloatingIconImage.Source = image;
+        else
+        {
+            FloatingIconImage.Source = Icon;
+            FloatingIconNotice.Text += "\nUsing the app icon for now.";
+        }
         ExitAppBtn.Click += (_, _) => Close();
         CopyBtn.Click += (_, _) => DoCopy();
         NewBtn.Click += (_, _) => ChangeNote(_notes.Create);
@@ -144,6 +194,7 @@ public partial class MainWindow : Window
 
     // ---------- Window plumbing ----------
 
+    /// <summary>Waits for a native handle before enabling the tray, global shortcut, and Windows appearance.</summary>
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
@@ -176,7 +227,12 @@ public partial class MainWindow : Window
 
         switch (msg)
         {
-            case NativeMethods.WM_NCLBUTTONDBLCLK when wParam.ToInt64() == NativeMethods.HTCAPTION:
+            case NativeMethods.WM_LBUTTONDBLCLK when _floating:
+                ShowAndActivate();
+                handled = true;
+                break;
+
+            case NativeMethods.WM_NCLBUTTONDBLCLK when wParam.ToInt64() == NativeMethods.HTCAPTION && !_floating:
                 ToggleCollapsed();
                 handled = true;
                 break;
@@ -197,12 +253,22 @@ public partial class MainWindow : Window
             case NativeMethods.WM_EXITSIZEMOVE:
                 OnUserMovedOrResized();
                 break;
+
+            case NativeMethods.WM_DPICHANGED when _floating:
+                // WPF must apply the new monitor scale before converting the square's pixel size.
+                Dispatcher.BeginInvoke(() =>
+                {
+                    if (_floating) ApplyFloatingIconSize();
+                });
+                break;
         }
         return IntPtr.Zero;
     }
 
+    /// <summary>Provides one recovery path for the tray, shortcut, floating icon, and repeat launches.</summary>
     public void ShowAndActivate()
     {
+        RestoreFromFloatingIcon();
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Activate();
@@ -211,6 +277,7 @@ public partial class MainWindow : Window
 
     private void ToggleCollapsed()
     {
+        if (_floating) return;
         if (_collapsed)
         {
             _collapsed = false;
@@ -240,6 +307,79 @@ public partial class MainWindow : Window
             ResizeMode = ResizeMode.NoResize;
             Height = HeaderRow.Height.Value;
         }
+        CollapseBtn.Content = _collapsed ? "\uE70D" : "\uE70E";
+        string label = _collapsed ? "Expand from title bar" : "Collapse to title bar";
+        CollapseBtn.ToolTip = label;
+        System.Windows.Automation.AutomationProperties.SetName(CollapseBtn, label);
+    }
+
+    private void CollapseToFloatingIcon()
+    {
+        if (_floating) return;
+        if (_settingsOpen) CloseSettings();
+        if (_collapsed) ToggleCollapsed();
+        CaptureGeometry();
+        _floatingRestoreBounds = new Rect(Left, Top, Width, Height);
+        _floatingRestoreMinWidth = MinWidth;
+        _expandedMinHeight = MinHeight;
+        _expandedResizeMode = ResizeMode;
+        _floating = true;
+        Keyboard.ClearFocus();
+        MainPanel.Visibility = Visibility.Collapsed;
+        FloatingIconPanel.Visibility = Visibility.Visible;
+        MinWidth = MinHeight = 0;
+        ResizeMode = ResizeMode.NoResize;
+        WindowChrome chrome = WindowChrome.GetWindowChrome(this);
+        chrome.CaptionHeight = 0;
+        chrome.ResizeBorderThickness = new Thickness(0);
+        Left = _s.FloatingIconLeft ?? Left;
+        Top = _s.FloatingIconTop ?? Top;
+        ApplyFloatingIconSize();
+        NativeMethods.SetWindowOpacity(_hwnd, 1);
+        MarkSettingsDirty();
+    }
+
+    private void RestoreFromFloatingIcon()
+    {
+        if (!_floating) return;
+        _floatingDragStart = null;
+        CaptureGeometry();
+        _floating = false;
+        FloatingIconPanel.Visibility = Visibility.Collapsed;
+        MainPanel.Visibility = Visibility.Visible;
+        MinWidth = _floatingRestoreMinWidth;
+        MinHeight = _expandedMinHeight;
+        ResizeMode = _expandedResizeMode;
+        WindowChrome chrome = WindowChrome.GetWindowChrome(this);
+        chrome.CaptionHeight = HeaderRow.Height.Value;
+        chrome.ResizeBorderThickness = new Thickness(6);
+        Width = _floatingRestoreBounds.Width;
+        Height = _floatingRestoreBounds.Height;
+        Left = _floatingRestoreBounds.Left;
+        Top = _floatingRestoreBounds.Top;
+        NativeMethods.SetWindowOpacity(_hwnd, _s.Opacity);
+        UpdateHeight();
+        KeepOnScreen();
+        MarkSettingsDirty();
+    }
+
+    private void ApplyFloatingIconSize()
+    {
+        double pixels = _s.FloatingIconSize;
+        if (pixels == 0)
+        {
+            var info = new NativeMethods.MONITORINFO { cbSize = Marshal.SizeOf<NativeMethods.MONITORINFO>() };
+            IntPtr monitor = NativeMethods.MonitorFromWindow(_hwnd, 2 /* nearest */);
+            double taskbar = 0;
+            if (NativeMethods.GetMonitorInfo(monitor, ref info))
+                taskbar = Math.Max(info.rcMonitor.right - info.rcMonitor.left - (info.rcWork.right - info.rcWork.left),
+                    info.rcMonitor.bottom - info.rcMonitor.top - (info.rcWork.bottom - info.rcWork.top));
+            pixels = taskbar >= 24 ? taskbar : 48;
+        }
+        DpiScale dpi = VisualTreeHelper.GetDpi(this);
+        Width = pixels / dpi.DpiScaleX;
+        Height = pixels / dpi.DpiScaleY;
+        KeepOnScreen();
     }
 
     private void Toggle()
@@ -248,7 +388,7 @@ public partial class MainWindow : Window
         else ShowAndActivate();
     }
 
-    /// <summary>Writes the note and settings immediately (logoff, crash).</summary>
+    /// <summary>Protects pending work when logoff or a crash cannot wait for the autosave delay.</summary>
     public void SaveNow()
     {
         CaptureGeometry();
@@ -260,6 +400,7 @@ public partial class MainWindow : Window
     /// <summary>Hiding is always safe: the tray icon (and usually the global shortcut) brings the window back.</summary>
     private void HideWindow()
     {
+        RestoreFromFloatingIcon();
         Hide();
         // The app lives in the background for days, so give the memory back while nobody is looking at it.
         Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
@@ -270,6 +411,7 @@ public partial class MainWindow : Window
         });
     }
 
+    /// <summary>Keeps drafts and unsaved settings reachable if a normal exit would lose them.</summary>
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         base.OnClosing(e);
@@ -295,6 +437,7 @@ public partial class MainWindow : Window
         _tray?.Dispose();
     }
 
+    /// <summary>Stops editor background work after closing can no longer be cancelled.</summary>
     protected override void OnClosed(EventArgs e)
     {
         Pad.Dispose();
@@ -346,6 +489,12 @@ public partial class MainWindow : Window
 
     private void CaptureGeometry()
     {
+        if (_floating)
+        {
+            _s.FloatingIconLeft = Left;
+            _s.FloatingIconTop = Top;
+            return;
+        }
         _s.Left = Left;
         _s.Top = Top;
         _s.Width = ActualWidth > 0 ? ActualWidth : Width;
@@ -354,7 +503,7 @@ public partial class MainWindow : Window
 
     private void OnUserMovedOrResized()
     {
-        if (!_settingsOpen && !_collapsed) _baseHeight = ActualHeight;
+        if (!_settingsOpen && !_collapsed && !_floating) _baseHeight = ActualHeight;
         CaptureGeometry();
         MarkSettingsDirty();
     }
@@ -362,7 +511,7 @@ public partial class MainWindow : Window
     /// <summary>Grows the window with the text up to 85% of the screen, and shrinks back to the user's own height.</summary>
     private void UpdateHeight()
     {
-        if (!IsLoaded || _collapsed) return;
+        if (!IsLoaded || _collapsed || _floating) return;
 
         Pad.UpdateLayout();
         Rect wa = WorkAreaDip();
@@ -689,6 +838,7 @@ public partial class MainWindow : Window
                     "session. Resolve the file access problem; QuickText will retry automatically. " +
                     "Exit is paused until settings are saved.\n\n" + ex.Message;
                 if (_collapsed) ToggleCollapsed();
+                if (_floating) ShowAndActivate();
                 SettingsSaveNotice.Visibility = Visibility.Visible;
                 if (!_settingsRetryTimer.IsEnabled) _settingsRetryTimer.Start();
             }
@@ -696,6 +846,64 @@ public partial class MainWindow : Window
     }
 
     // ---------- Settings panel ----------
+
+    private bool TryLoadFloatingIcon(string path, out ImageSource? image)
+    {
+        image = Icon;
+        if (string.IsNullOrEmpty(path)) return true;
+        try
+        {
+            using FileStream stream = File.OpenRead(path);
+            image = BitmapFrame.Create(stream, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad);
+            image.Freeze();
+            FloatingIconNotice.Text = "";
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException or FileFormatException)
+        {
+            Storage.LogCrash(ex);
+            FloatingIconNotice.Text = $"Cannot use '{path}'. Choose another image or use the app icon.\n{ex.Message}";
+            return false;
+        }
+    }
+
+    private void ChooseFloatingIcon()
+    {
+        OpenFileDialog dialog = new()
+        {
+            Title = "Choose a floating icon",
+            Filter = "Images (*.ico;*.png;*.jpg;*.jpeg;*.bmp)|*.ico;*.png;*.jpg;*.jpeg;*.bmp",
+            CheckFileExists = true
+        };
+        if (dialog.ShowDialog(this) != true) return;
+        if (!TryLoadFloatingIcon(dialog.FileName, out ImageSource? image)) return;
+        FloatingIconImage.Source = image;
+        _s.FloatingIconPath = dialog.FileName;
+        RefreshFloatingIconSettings();
+        MarkSettingsDirty();
+    }
+
+    private void RefreshFloatingIconSettings()
+    {
+        FloatingIconLabel.Text = string.IsNullOrEmpty(_s.FloatingIconPath) ? "App icon" : Path.GetFileName(_s.FloatingIconPath);
+        FloatingIconLabel.ToolTip = _s.FloatingIconPath;
+        FloatingIconAutoSize.IsChecked = _s.FloatingIconSize == 0;
+        FloatingIconSizeSlider.Value = _s.FloatingIconSize == 0 ? 48 : _s.FloatingIconSize;
+        FloatingIconSizeSlider.IsEnabled = _s.FloatingIconSize != 0;
+        FloatingIconSizeLabel.Text = _s.FloatingIconSize == 0
+            ? "Automatic square; 48 pixels when the taskbar is hidden."
+            : $"{_s.FloatingIconSize:0} x {_s.FloatingIconSize:0} pixels";
+    }
+
+    private void OnFloatingIconSizeChanged()
+    {
+        if (_loadingUi) return;
+        _s.FloatingIconSize = FloatingIconAutoSize.IsChecked == true ? 0 : Math.Round(FloatingIconSizeSlider.Value);
+        _loadingUi = true;
+        try { RefreshFloatingIconSettings(); }
+        finally { _loadingUi = false; }
+        MarkSettingsDirty();
+    }
 
     private void ApplyNoteFont()
     {
@@ -715,8 +923,10 @@ public partial class MainWindow : Window
 
     private void OpenSettings()
     {
+        RestoreFromFloatingIcon();
         if (_collapsed) ToggleCollapsed();
         _loadingUi = true;
+        RefreshFloatingIconSettings();
         NoteFontPicker.SelectedItem = Pad.FontFamily.Source;
         AutosaveSwitch.IsChecked = _s.Autosave;
         AutostartSwitch.IsChecked = Autostart.IsEnabled;
@@ -827,6 +1037,7 @@ public partial class MainWindow : Window
         if (_settingsOpen) SettingsPanel.Focus();
     }
 
+    /// <summary>Resolves app shortcuts before the editor can consume them, while protecting normal typing.</summary>
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
         base.OnPreviewKeyDown(e);

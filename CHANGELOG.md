@@ -8,6 +8,13 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Added
 
+- Title-bar buttons for toolbar collapse and a draggable, always-on-top floating
+  icon. Double-clicking the floating icon restores the full editor without
+  changing drafts, selection, undo history, or saved editor geometry.
+- Floating-icon image and square-size settings, using the app icon and taskbar
+  size by default, with separate position persistence and visible image errors.
+- Repository-wide agent guidance for small Conventional Commits, validated dev
+  branch/PR delivery, and simple public API comments explaining why APIs exist.
 - Markdown source highlighting for headings, lists/tasks, quotes, emphasis,
   links, and inline/fenced code using the AvalonEdit editor.
 - Persistent note-font selection in Settings with immediate application and
@@ -29,8 +36,8 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Changed
 
-- Refreshed README screenshots to show the current note toolbar, Markdown
-  highlighting, and Settings with the note-font picker.
+- Refreshed README screenshots with sample Markdown, both compact-mode buttons,
+  and Settings showing the note-font picker and floating-icon options.
 - Spell checking is debounced on a dedicated STA worker with cached word results;
   painting and scrolling never run Windows full-document spelling scans.
 

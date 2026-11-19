@@ -7,6 +7,8 @@ using System.Windows.Controls;
 using System.Windows.Markup;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Windows.Shell;
 using System.Windows.Threading;
 using System.Xml.Linq;
 using QuickText;
@@ -115,13 +117,13 @@ internal static class Program
                 root.Arrange(new Rect(0, 0, width, 280));
                 root.UpdateLayout();
                 double previousRight = 0;
-                foreach (string name in new[] { "NewBtn", "NotePicker", "DeleteBtn", "TitleLabel", "SettingsBtn", "CopyBtn", "CloseBtn" })
+                foreach (string name in new[] { "NewBtn", "NotePicker", "DeleteBtn", "TitleLabel", "SettingsBtn", "CopyBtn", "FloatBtn", "CollapseBtn", "CloseBtn" })
                 {
                     FrameworkElement element = Control<FrameworkElement>(window, name);
                     Rect bounds = element.TransformToAncestor(root).TransformBounds(new Rect(element.RenderSize));
                     Check(bounds.Width > 0 && bounds.Left >= previousRight && bounds.Right <= width &&
                         bounds.Top >= 0 && bounds.Bottom <= 40,
-                        $"{name} is clipped at width {width}.");
+                        $"{name} bounds {bounds} overlap previous right edge {previousRight} or are clipped at width {width}.");
                     Check(Math.Abs((bounds.Top + bounds.Bottom) / 2 - 20) <= 1,
                         $"{name} is not on the same toolbar line at width {width}.");
                     previousRight = bounds.Right;
@@ -209,9 +211,10 @@ internal static class Program
             SendMessage(handle, 0x00A3, new IntPtr(2), IntPtr.Zero);
             Check(!Field<bool>(window, "_collapsed") && window.WindowState == WindowState.Normal,
                 "The native caption message maximized instead of expanding.");
+            CheckFloatingIcon(window, directory);
             window.Close();
             Check(File.ReadAllText(Path.Combine(directory, "notes.txt")) == "# Legacy backup", "Legacy backup changed.");
-            Console.WriteLine("PASS: Markdown spans/fences, native spelling and corrections, font selection/persistence/fallback, settings save failure/retry, native notes, themed confirmation, toolbar layout, collapse/expand and Settings transitions.");
+            Console.WriteLine("PASS: Markdown spans/fences, native spelling and corrections, font selection/persistence/fallback, settings save failure/retry, native notes, themed confirmation, toolbar layout, title-bar/floating modes, icon settings/persistence and Settings transitions.");
             return 0;
         }
         catch (Exception ex)
@@ -228,6 +231,145 @@ internal static class Program
 
     private static T Control<T>(MainWindow window, string name) where T : FrameworkElement =>
         (T)window.FindName(name);
+
+    private static void CheckFloatingIcon(MainWindow window, string directory)
+    {
+        AppSettings settings = Field<AppSettings>(window, "_s");
+        MarkdownEditor pad = Control<MarkdownEditor>(window, "Pad");
+        window.UpdateLayout();
+        window.SaveNow();
+        Rect expanded = new(window.Left, window.Top, window.Width, window.Height);
+        double savedWidth = settings.Width, savedHeight = settings.Height;
+        double minimumWidth = window.MinWidth, minimumHeight = window.MinHeight;
+        string text = pad.Text;
+        pad.Select(2, 7);
+        bool canUndo = pad.Document.UndoStack.CanUndo;
+
+        Invoke(window, "OpenSettings");
+        Check(Control<CheckBox>(window, "FloatingIconAutoSize").IsChecked == true,
+            "Floating icon does not default to automatic taskbar sizing.");
+        Control<CheckBox>(window, "FloatingIconAutoSize").IsChecked = false;
+        Control<CheckBox>(window, "FloatingIconAutoSize").RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+        Control<Slider>(window, "FloatingIconSizeSlider").Value = 64;
+        Check(settings.FloatingIconSize == 64 &&
+            Control<TextBlock>(window, "FloatingIconSizeLabel").Text == "64 x 64 pixels",
+            "The custom square size was not applied through Settings.");
+        Invoke(window, "CloseSettings");
+
+        for (int cycle = 0; cycle < 3; cycle++)
+        {
+            window.Show();
+            PumpDispatcher();
+            IntPtr nativeHandle = new WindowInteropHelper(window).Handle;
+            if (cycle == 0)
+                Control<Button>(window, "CollapseBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            else if (cycle == 1) Invoke(window, "OpenSettings");
+            Control<Button>(window, "FloatBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            DpiScale dpi = VisualTreeHelper.GetDpi(window);
+            Check(Field<bool>(window, "_floating") && !Field<bool>(window, "_collapsed") &&
+                Math.Abs(window.Width * dpi.DpiScaleX - 64) < 0.1 &&
+                Math.Abs(window.Height * dpi.DpiScaleY - 64) < 0.1 &&
+                window.Topmost && window.ShowInTaskbar && window.ResizeMode == ResizeMode.NoResize,
+                "Floating mode is not a square, always-on-top, non-resizable 64-pixel icon.");
+            Check(new WindowInteropHelper(window).Handle == nativeHandle,
+                "Floating mode replaced the native handle used by the tray and global shortcut.");
+            window.UpdateLayout();
+            GetWindowRect(nativeHandle, out ScreenRect iconBounds);
+            Check(iconBounds.Right - iconBounds.Left == 64 && iconBounds.Bottom - iconBounds.Top == 64,
+                "The native floating window is not exactly 64 by 64 physical pixels.");
+            int hitPoint = (iconBounds.Left + 8) | ((iconBounds.Top + 8) << 16);
+            Check(SendMessage(nativeHandle, 0x0084, IntPtr.Zero, new IntPtr(hitPoint)).ToInt64() == 1,
+                "The floating icon intercepts client input as native title-bar chrome.");
+            Check(Control<Grid>(window, "MainPanel").Visibility == Visibility.Collapsed &&
+                Control<Border>(window, "FloatingIconPanel").Visibility == Visibility.Visible &&
+                Control<Image>(window, "FloatingIconImage").Source != null &&
+                WindowChrome.GetWindowChrome(window).CaptionHeight == 0,
+                "Floating mode left editor chrome visible or has no image.");
+            Check(!CaptionDoubleClick(window, 2), "Floating mode still treats its surface as a title bar.");
+            window.Left += 12;
+            window.Top += 10;
+            Invoke(window, "OnUserMovedOrResized");
+            window.SaveNow();
+            Check(settings.Width == savedWidth && settings.Height == savedHeight &&
+                settings.Left == expanded.Left && settings.Top == expanded.Top &&
+                settings.FloatingIconLeft == window.Left && settings.FloatingIconTop == window.Top,
+                "Moving or saving the floating icon replaced the editor geometry.");
+
+            SendMessage(new WindowInteropHelper(window).Handle, 0x0203, new IntPtr(1), new IntPtr(24 | (24 << 16)));
+            Check(!Field<bool>(window, "_floating") && !Field<bool>(window, "_collapsed") &&
+                window.Width == expanded.Width && window.Height == expanded.Height &&
+                window.Left == expanded.Left && window.Top == expanded.Top &&
+                window.MinWidth == minimumWidth && window.MinHeight == minimumHeight &&
+                window.ResizeMode == ResizeMode.CanResize && window.ShowInTaskbar,
+                "Native double-click did not restore the full editor and its geometry.");
+            window.Hide();
+            Check(pad.Text == text && pad.SelectionStart == 2 && pad.SelectionLength == 7 &&
+                pad.Document.UndoStack.CanUndo == canUndo,
+                "Floating transitions changed the draft, selection, or undo history.");
+        }
+
+        Control<Button>(window, "FloatBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        window.ShowAndActivate();
+        Check(!Field<bool>(window, "_floating"), "The tray/global recovery path did not restore the editor.");
+        window.Hide();
+        Control<Button>(window, "FloatBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Invoke(window, "OpenSettings");
+        Check(!Field<bool>(window, "_floating") && Field<bool>(window, "_settingsOpen"),
+            "Opening Settings did not leave floating mode.");
+        Control<CheckBox>(window, "FloatingIconAutoSize").IsChecked = true;
+        Control<CheckBox>(window, "FloatingIconAutoSize").RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+        Control<Button>(window, "FloatBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Check(window.Width > 0 && window.Height > 0 && Math.Abs(window.Width - window.Height) < 0.1,
+            "Automatic floating icon sizing did not produce a usable square.");
+        IntPtr iconHandle = new WindowInteropHelper(window).Handle;
+        MonitorInfo monitor = new() { Size = Marshal.SizeOf<MonitorInfo>() };
+        Check(GetMonitorInfo(MonitorFromWindow(iconHandle, 2), ref monitor), "Cannot measure the test monitor.");
+        int taskbar = Math.Max(monitor.Bounds.Right - monitor.Bounds.Left - (monitor.Work.Right - monitor.Work.Left),
+            monitor.Bounds.Bottom - monitor.Bounds.Top - (monitor.Work.Bottom - monitor.Work.Top));
+        int expectedPixels = taskbar >= 24 ? taskbar : 48;
+        window.UpdateLayout();
+        GetWindowRect(iconHandle, out ScreenRect automaticBounds);
+        Check(automaticBounds.Right - automaticBounds.Left == expectedPixels &&
+            automaticBounds.Bottom - automaticBounds.Top == expectedPixels,
+            "The default icon does not match the taskbar thickness or the 48-pixel hidden-taskbar fallback.");
+        using (FileStream blocked = new(Path.Combine(directory, "settings.json.tmp"),
+                   FileMode.OpenOrCreate, FileAccess.Read, FileShare.Read))
+        {
+            Invoke(window, "FlushSave");
+            Check(!Field<bool>(window, "_floating") &&
+                Control<Border>(window, "SettingsSaveNotice").Visibility == Visibility.Visible,
+                "Floating mode hid a settings save failure.");
+        }
+        Invoke(window, "FlushSave");
+        window.Hide();
+        settings.FloatingIconSize = 64;
+        string imagePath = Path.Combine(directory, "floating.png");
+        PngBitmapEncoder encoder = new();
+        encoder.Frames.Add(BitmapFrame.Create((BitmapSource)window.Icon));
+        using (FileStream stream = File.Create(imagePath)) encoder.Save(stream);
+        settings.FloatingIconPath = imagePath;
+        window.SaveNow();
+        MainWindow restored = new();
+        Check(Field<AppSettings>(restored, "_s").FloatingIconSize == 64 &&
+            Field<AppSettings>(restored, "_s").FloatingIconLeft == settings.FloatingIconLeft &&
+            Control<Image>(restored, "FloatingIconImage").Source is BitmapSource &&
+            Control<TextBlock>(restored, "FloatingIconNotice").Text == "",
+            "Custom icon, size, or position did not survive a restart.");
+        using (FileStream unlocked = new(imagePath, FileMode.Open, FileAccess.ReadWrite, FileShare.None)) { }
+        restored.Close();
+        File.WriteAllText(imagePath, "not an image");
+        MainWindow invalidImage = new();
+        Check(Control<Image>(invalidImage, "FloatingIconImage").Source == invalidImage.Icon &&
+            Control<TextBlock>(invalidImage, "FloatingIconNotice").Text.Contains("Cannot use"),
+            "An invalid saved image did not explain its fallback.");
+        Control<Button>(invalidImage, "ResetFloatingIconBtn").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        invalidImage.SaveNow();
+        Check(Field<AppSettings>(invalidImage, "_s").FloatingIconPath == "" &&
+            Control<TextBlock>(invalidImage, "FloatingIconNotice").Text == "",
+            "Use app icon did not clear the custom path and error.");
+        invalidImage.Close();
+        window.SaveNow();
+    }
 
     private static void CheckSettingsSaveRecovery(MainWindow window, string directory)
     {
@@ -289,6 +431,29 @@ internal static class Program
 
     [DllImport("user32.dll", EntryPoint = "SendMessageW")]
     private static extern IntPtr SendMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hwnd, out ScreenRect rect);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
+
+    [DllImport("user32.dll", EntryPoint = "GetMonitorInfoW")]
+    private static extern bool GetMonitorInfo(IntPtr monitor, ref MonitorInfo info);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MonitorInfo
+    {
+        public int Size;
+        public ScreenRect Bounds, Work;
+        public uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ScreenRect
+    {
+        public int Left, Top, Right, Bottom;
+    }
 
     private static IEnumerable<DependencyObject> Descendants(DependencyObject parent)
     {

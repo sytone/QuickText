@@ -2,11 +2,14 @@ using System.Windows.Input;
 
 namespace QuickText;
 
-/// <summary>A key combination such as CTRL+SHIFT+C. Text form is what settings.json stores.</summary>
+/// <summary>Shares shortcut parsing and typing-safety rules between recording, settings, and registration.</summary>
+/// <param name="Modifiers">Distinguishes shortcuts from ordinary text-entry keys.</param>
+/// <param name="Key">Identifies the non-modifier key shared by local and global handlers.</param>
 internal readonly record struct Gesture(ModifierKeys Modifiers, Key Key)
 {
     public const string NotSet = "not set";
 
+    /// <summary>Normalises WPF's alternate key reports so recorded and executed shortcuts agree.</summary>
     public static Gesture? FromEvent(KeyEventArgs e)
     {
         Key key = e.Key switch
@@ -24,6 +27,7 @@ internal readonly record struct Gesture(ModifierKeys Modifiers, Key Key)
         return new Gesture(Keyboard.Modifiers, key);
     }
 
+    /// <summary>Accepts saved shortcut spellings without requiring users to rewrite older settings.</summary>
     public static bool TryParse(string? text, out Gesture gesture)
     {
         gesture = default;
@@ -84,6 +88,7 @@ internal readonly record struct Gesture(ModifierKeys Modifiers, Key Key)
         _ => key.ToString().ToUpperInvariant()
     };
 
+    /// <summary>Lets global registration reject bare keys that would be swallowed in every app.</summary>
     public bool HasModifier => Modifiers != ModifierKeys.None;
 
     /// <summary>Keys that produce text or edit it. Binding one of these without a real modifier would break typing.</summary>
@@ -110,6 +115,7 @@ internal readonly record struct Gesture(ModifierKeys Modifiers, Key Key)
         }
     }
 
+    /// <summary>Keeps saved shortcuts stable regardless of how the UI displays their names.</summary>
     public override string ToString()
     {
         var parts = new List<string>(4);
@@ -121,7 +127,7 @@ internal readonly record struct Gesture(ModifierKeys Modifiers, Key Key)
         return string.Join("+", parts);
     }
 
-    /// <summary>Human-friendly form for the UI, e.g. "Ctrl+Shift+Space" or "Esc".</summary>
+    /// <summary>Keeps hints and buttons readable without changing the stable settings format.</summary>
     public string Pretty => string.Join("+", ToString().Split('+').Select(part => part switch
     {
         "ESCAPE" => "Esc",
@@ -129,6 +135,7 @@ internal readonly record struct Gesture(ModifierKeys Modifiers, Key Key)
         _ => part
     }));
 
+    /// <summary>Gives all shortcut fields the same readable label when a binding is absent or invalid.</summary>
     public static string Display(string stored) =>
         TryParse(stored, out var g) ? g.Pretty : "Not set";
 }

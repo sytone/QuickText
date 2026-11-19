@@ -10,8 +10,10 @@ internal sealed class GlobalHotkey
     private IntPtr _hwnd;
     private int _id;
 
+    /// <summary>Tracks ownership so cleanup releases only this app's active registration.</summary>
     public bool IsRegistered { get; private set; }
 
+    /// <summary>Protects normal typing and explains conflicts before claiming a system-wide shortcut.</summary>
     public bool TryRegister(IntPtr hwnd, int id, Gesture gesture, out string? error)
     {
         Unregister();
@@ -58,6 +60,7 @@ internal sealed class GlobalHotkey
         return true;
     }
 
+    /// <summary>Releases the old shortcut before reassignment or exit so other apps can use it.</summary>
     public void Unregister()
     {
         if (IsRegistered) NativeMethods.UnregisterHotKey(_hwnd, _id);

@@ -28,9 +28,10 @@ internal sealed class TrayIcon : IDisposable
     private string _tip = "QuickText";
     private bool _added;
 
-    /// <summary>Right-aligned shortcut shown in the menu, e.g. "CTRL+SHIFT+SPACE". Empty when none is set.</summary>
+    /// <summary>Keeps the tray's recovery hint consistent with the currently registered shortcut.</summary>
     public string ShortcutText { get; set; } = "";
 
+    /// <summary>Routes tray actions through the main window so hidden and compact states share recovery.</summary>
     public TrayIcon(IntPtr hwnd, Action toggle, Action exit)
     {
         _hwnd = hwnd;
@@ -41,18 +42,20 @@ internal sealed class TrayIcon : IDisposable
         if (exe != null) ExtractIconEx(exe, 0, IntPtr.Zero, out _icon, 1);
     }
 
+    /// <summary>Registers the recovery icon initially and again if Explorer restarts.</summary>
     public void Add()
     {
         _added = Notify(NIM_ADD);
     }
 
+    /// <summary>Keeps recovery instructions inside the shell's tooltip length limit.</summary>
     public void SetTip(string tip)
     {
         _tip = tip.Length > 127 ? tip[..127] : tip;
         if (_added) Notify(NIM_MODIFY);
     }
 
-    /// <summary>Returns true when the message belonged to the tray icon.</summary>
+    /// <summary>Separates tray messages from window input and recovers the icon after an Explorer restart.</summary>
     public bool TryHandle(int msg, IntPtr lParam)
     {
         if (msg == _taskbarCreated && _taskbarCreated != 0)
@@ -110,6 +113,7 @@ internal sealed class TrayIcon : IDisposable
         return Shell_NotifyIconW(message, ref data);
     }
 
+    /// <summary>Removes the shell entry and releases the native icon so exit leaves no stale tray item.</summary>
     public void Dispose()
     {
         if (_added)
