@@ -84,3 +84,6 @@ Windows x64 only. Markdown is highlighted source, not a rendered preview.
 finally {
     Remove-Item -LiteralPath $testRoot -Recurse -Force
 }
+
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot 'Test-AgentRelease.ps1')
+if ($LASTEXITCODE -ne 0) { throw 'Agent release tests failed.' }
