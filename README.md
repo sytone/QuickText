@@ -10,7 +10,8 @@ Plain text, no account, no network.
 [![MIT license][license-badge]](LICENSE)
 
 [Download](#download) | [Install or update](#install-or-update-from-source) |
-[Getting started](#getting-started) | [Changelog](CHANGELOG.md)
+[Getting started](#getting-started) | [Releasing](#releasing) |
+[Changelog](CHANGELOG.md)
 
 ![QuickText with highlighted Markdown and title-bar and floating-icon buttons][screenshot]
 
@@ -228,6 +229,34 @@ them to a release.
 QuickText is a plain WPF application without an embedded browser. The global
 shortcut, tray icon, window opacity and rounded corners use the Win32 and DWM
 APIs directly.
+
+## Releasing
+
+### With an agent (recommended)
+
+Open a new agent session in this repository and say:
+
+> I want to do a release.
+
+[AGENTS.md](AGENTS.md#release-requests) gives the agent the complete entry point.
+It checks the next version, reviews release notes against the changes, and uses
+scripts to prepare a release PR, wait for checks, merge that preparation PR, tag
+the checked commit, and verify the resulting **draft**, downloads, and checksums.
+It then gives you the draft link for final review and manual publication.
+
+Versions come from the changelog: breaking changes mean major, additions mean
+minor, and other changes mean patch. A release request authorizes merging only
+its green release-preparation PR, never publishing the release or bypassing
+repository protections. See [the agent procedure](CONTRIBUTING.md#release-with-an-agent-first)
+for prerequisites, script commands, and recovery rules.
+
+### Manually
+
+Prefer to drive the release yourself? Follow the
+[manual release procedure](CONTRIBUTING.md#release-manually-second):
+review the notes, update the version and changelog in a PR, merge after checks,
+then push the matching version tag. The workflow builds a draft for the same
+final human review. Neither path publishes automatically.
 
 ## Contributing
 
