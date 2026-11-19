@@ -6,7 +6,7 @@ A small scratchpad for Windows. One shortcut opens it, one hides it.
 Plain text, no account, no network.
 
 [![Build status][build-badge]][build]
-[![Latest upstream release][release-badge]][upstream-release]
+[![Latest release][release-badge]][release]
 [![MIT license][license-badge]](LICENSE)
 
 [Download](#download) | [Install or update](#install-or-update-from-source) |
@@ -46,7 +46,7 @@ selection marker, and migration process as that version.
 
 ## Download
 
-1. Download **`QuickText.exe`** from the [latest upstream release][upstream-release].
+1. Download **`QuickText.exe`** from [this fork's latest release][release].
 2. Double-click it. There is nothing to install and no runtime to add.
 
 QuickText needs Windows 10 or 11, 64-bit.
@@ -56,13 +56,16 @@ QuickText needs Windows 10 or 11, 64-bit.
 > Verify the download source and compare its SHA-256 hash with `SHA256SUMS.txt`
 > from the same release before deciding whether to run it.
 
-| File | Size | Needs |
-| :--- | :--- | :--- |
-| `QuickText.exe` | about 125 MB | nothing |
-| `QuickText-needs-dotnet.exe` | about 0.3 MB | [.NET 10 Desktop Runtime][runtime] |
+| File | Needs |
+| :--- | :--- |
+| `QuickText.exe` | nothing |
+| `QuickText-needs-dotnet.exe` | [.NET 10 Desktop Runtime][runtime] |
 
-For this fork's current source, use the installer below instead of the upstream
-download.
+Releases include user-focused highlights, upgrade guidance, checksums, and license
+notices. Version tags create drafts for review before publication; see
+[the release process](CONTRIBUTING.md#releases).
+If no release has been published yet, or you want the latest source, use the
+installer below.
 
 ## Install or update from source
 
@@ -240,8 +243,8 @@ Please read
 
 [build-badge]: https://github.com/sytone/QuickText/actions/workflows/build.yml/badge.svg
 [build]: https://github.com/sytone/QuickText/actions/workflows/build.yml
-[release-badge]: https://img.shields.io/github/v/release/BlazeR-28/QuickText?style=flat
-[upstream-release]: https://github.com/BlazeR-28/QuickText/releases/latest
+[release-badge]: https://img.shields.io/github/v/release/sytone/QuickText?style=flat
+[release]: https://github.com/sytone/QuickText/releases/latest
 [license-badge]: https://img.shields.io/github/license/sytone/QuickText?style=flat
 [upstream]: https://github.com/BlazeR-28/QuickText
 [backup]: https://github.com/sytone/QuickText/tree/BACKUP

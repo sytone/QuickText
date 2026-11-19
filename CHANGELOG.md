@@ -8,6 +8,8 @@ All notable changes to QuickText are documented here. The format follows
 
 ### Added
 
+- Validated, tag-triggered release drafts with both Windows builds, checksums,
+  license notices, reviewed user-focused descriptions, and manual preview builds.
 - Title-bar buttons for toolbar collapse and a draggable, always-on-top floating
   icon. Double-clicking the floating icon restores the full editor without
   changing drafts, selection, undo history, or saved editor geometry.

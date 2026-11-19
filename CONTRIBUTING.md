@@ -77,6 +77,76 @@ still fail lint.
 
 ## Releases
 
-Releases are built by GitHub Actions: pushing a tag like `v2.0.1` builds the
-self-contained and the small variant and attaches them, with checksums, to a
-GitHub release.
+The [Release workflow](.github/workflows/release.yml) turns a version tag into a
+**draft**, never an automatically published release. A separate write-enabled job
+creates the draft only after the read-only build and tests pass.
+
+### Prepare a release
+
+1. Update [the reviewed release notes](docs/RELEASE_NOTES.md). This file describes
+   the next release, and its history is preserved by each version tag.
+   Keep all five sections: Overview, Highlights, Fixes and improvements,
+   Upgrading, and Known limitations.
+2. Write for someone using the app: explain what is better, why it matters, and
+   how to use it. Group related work into a few highlights. Include practical
+   upgrade steps, data compatibility, and real limitations. Do not paste commit
+   subjects, internal cleanup lists, or unverified claims. Remove placeholders.
+3. Set `Version` in [QuickText.csproj](src/QuickText/QuickText.csproj) to the intended
+   stable `major.minor.patch` version. Move shipped changes from Unreleased into
+   a dated version section in [CHANGELOG.md](CHANGELOG.md).
+4. Validate and merge the preparation PR to `main`. Review the notes with the
+   code; the workflow adds versioned download links and verification instructions.
+5. Tag the reviewed commit on `origin/main`, for example:
+
+   ```powershell
+   git fetch origin
+   git tag -a v2.1.0 origin/main -m "QuickText v2.1.0"
+   git push origin v2.1.0
+   ```
+
+The tag must exactly match the project version, including the leading `v`.
+Only stable three-part versions are supported; prerelease tags and leading zeros
+are rejected. A tag outside `main` is rejected too.
+
+### What the workflow produces
+
+The workflow builds with warnings as errors, runs release-note, note-store, and
+native WPF checks, then publishes both Windows x64 variants. It checks each
+executable's embedded version before collecting:
+
+- `QuickText.exe`: self-contained; no separate .NET runtime needed.
+- `QuickText-needs-dotnet.exe`: requires the .NET 10 Desktop Runtime.
+- `LICENSE` and `THIRD-PARTY-NOTICES.md`.
+- `SHA256SUMS.txt`: SHA-256 hashes for all four downloads above.
+
+Both variants, the generated description, and checksums are also kept in a
+workflow artifact for seven days. The checksums are not code signing.
+Failed validation or packaging cannot create a draft. A rerun never overwrites
+an existing draft or published release: inspect any partial draft after a failed
+upload and resolve it manually.
+
+### Preview without releasing
+
+From **Actions > Release > Run workflow**, select a branch to build and upload
+the preview artifact. Manual runs never create or publish a GitHub release,
+even when run against a tag.
+
+For a local preview with PowerShell 7 and the .NET 10 SDK:
+
+```powershell
+pwsh -NoProfile -File .\scripts\Test-Release.ps1
+pwsh -NoProfile -File .\scripts\Publish-Release.ps1
+```
+
+The local output is `publish\release`, which must be empty or absent. Use
+`-OutputDirectory` for another empty destination rather than mixing old and new
+downloads. Neither script touches installed notes, startup settings, or releases.
+The regular Build workflow also runs the release-note regression tests on PRs.
+
+### Publish after review
+
+Open the draft in **Releases**. Read the rendered description, check the version,
+download both executables and the checksum manifest, and verify their hashes.
+Try the downloads with isolated test data, not personal notes. Check that the
+upgrade guidance is accurate and the license files are attached.
+Publish the draft only when that final review is complete.
