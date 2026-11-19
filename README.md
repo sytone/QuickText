@@ -6,11 +6,12 @@ A small scratchpad for Windows. One shortcut opens it, one hides it.
 Plain text, no account, no network.
 
 [![Build status][build-badge]][build]
-[![Latest upstream release][release-badge]][upstream-release]
+[![Latest release][release-badge]][release]
 [![MIT license][license-badge]](LICENSE)
 
 [Download](#download) | [Install or update](#install-or-update-from-source) |
-[Getting started](#getting-started) | [Changelog](CHANGELOG.md)
+[Getting started](#getting-started) | [Releasing](#releasing) |
+[Changelog](CHANGELOG.md)
 
 ![QuickText with highlighted Markdown and title-bar and floating-icon buttons][screenshot]
 
@@ -46,7 +47,7 @@ selection marker, and migration process as that version.
 
 ## Download
 
-1. Download **`QuickText.exe`** from the [latest upstream release][upstream-release].
+1. Download **`QuickText.exe`** from [this fork's latest release][release].
 2. Double-click it. There is nothing to install and no runtime to add.
 
 QuickText needs Windows 10 or 11, 64-bit.
@@ -56,13 +57,16 @@ QuickText needs Windows 10 or 11, 64-bit.
 > Verify the download source and compare its SHA-256 hash with `SHA256SUMS.txt`
 > from the same release before deciding whether to run it.
 
-| File | Size | Needs |
-| :--- | :--- | :--- |
-| `QuickText.exe` | about 125 MB | nothing |
-| `QuickText-needs-dotnet.exe` | about 0.3 MB | [.NET 10 Desktop Runtime][runtime] |
+| File | Needs |
+| :--- | :--- |
+| `QuickText.exe` | nothing |
+| `QuickText-needs-dotnet.exe` | [.NET 10 Desktop Runtime][runtime] |
 
-For this fork's current source, use the installer below instead of the upstream
-download.
+Releases include user-focused highlights, upgrade guidance, checksums, and license
+notices. Version tags create drafts for review before publication; see
+[the release process](CONTRIBUTING.md#releases).
+If no release has been published yet, or you want the latest source, use the
+installer below.
 
 ## Install or update from source
 
@@ -226,6 +230,34 @@ QuickText is a plain WPF application without an embedded browser. The global
 shortcut, tray icon, window opacity and rounded corners use the Win32 and DWM
 APIs directly.
 
+## Releasing
+
+### With an agent (recommended)
+
+Open a new agent session in this repository and say:
+
+> I want to do a release.
+
+[AGENTS.md](AGENTS.md#release-requests) gives the agent the complete entry point.
+It checks the next version, reviews release notes against the changes, and uses
+scripts to prepare a release PR, wait for checks, merge that preparation PR, tag
+the checked commit, and verify the resulting **draft**, downloads, and checksums.
+It then gives you the draft link for final review and manual publication.
+
+Versions come from the changelog: breaking changes mean major, additions mean
+minor, and other changes mean patch. A release request authorizes merging only
+its green release-preparation PR, never publishing the release or bypassing
+repository protections. See [the agent procedure](CONTRIBUTING.md#release-with-an-agent-first)
+for prerequisites, script commands, and recovery rules.
+
+### Manually
+
+Prefer to drive the release yourself? Follow the
+[manual release procedure](CONTRIBUTING.md#release-manually-second):
+review the notes, update the version and changelog in a PR, merge after checks,
+then push the matching version tag. The workflow builds a draft for the same
+final human review. Neither path publishes automatically.
+
 ## Contributing
 
 Bug reports and small, focused pull requests are welcome. QuickText is deliberately
@@ -240,8 +272,8 @@ Please read
 
 [build-badge]: https://github.com/sytone/QuickText/actions/workflows/build.yml/badge.svg
 [build]: https://github.com/sytone/QuickText/actions/workflows/build.yml
-[release-badge]: https://img.shields.io/github/v/release/BlazeR-28/QuickText?style=flat
-[upstream-release]: https://github.com/BlazeR-28/QuickText/releases/latest
+[release-badge]: https://img.shields.io/github/v/release/sytone/QuickText?style=flat
+[release]: https://github.com/sytone/QuickText/releases/latest
 [license-badge]: https://img.shields.io/github/license/sytone/QuickText?style=flat
 [upstream]: https://github.com/BlazeR-28/QuickText
 [backup]: https://github.com/sytone/QuickText/tree/BACKUP

@@ -1,55 +1,85 @@
 name: Release
 
-# Push a tag such as v2.0.1 and this builds both variants and attaches them to a GitHub release.
-# Run it by hand (Actions tab) to test the pipeline: it then only uploads the files as a build artifact.
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
 
 jobs:
-  release:
+  build:
     runs-on: windows-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: 10.0.x
 
-      # Runs on any Windows 10/11 without installing anything (about 120 MB).
-      - name: Publish self-contained
-        run: dotnet publish src/QuickText/QuickText.csproj -c Release -o out/full --nologo
-
-      # Tiny (about 0.2 MB), needs the .NET 10 Desktop Runtime.
-      - name: Publish framework-dependent
-        run: dotnet publish src/QuickText/QuickText.csproj -c Release -p:SelfContained=false -o out/small --nologo
-
-      - name: Collect assets
-        shell: pwsh
+      - name: Require a commit from main
+        if: github.event_name == 'push'
         run: |
-          New-Item -ItemType Directory dist | Out-Null
-          Copy-Item out/full/QuickText.exe dist/QuickText.exe
-          Copy-Item out/small/QuickText.exe dist/QuickText-needs-dotnet.exe
-          Get-ChildItem dist | Get-FileHash -Algorithm SHA256 |
-            ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } |
-            Set-Content dist/SHA256SUMS.txt
-          Get-Content dist/SHA256SUMS.txt
+          git merge-base --is-ancestor HEAD origin/main
+          if ($LASTEXITCODE -ne 0) { throw 'Release tags must point at a commit on main.' }
 
-      - name: Create release
-        if: startsWith(github.ref, 'refs/tags/')
-        shell: pwsh
+      - name: Build with warnings as errors
+        run: dotnet build QuickText.sln -c Release --nologo -warnaserror
+
+      - name: Test release notes, storage, and native workflow
+        run: |
+          pwsh -NoProfile -File .\scripts\Test-Release.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File .\scripts\Test-NoteStore.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet run --project .\tests\QuickText.Notes.Tests -c Release
+
+      - name: Prepare both downloads and reviewed notes
         env:
-          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
-          gh release create "${{ github.ref_name }}" dist/* --title "QuickText ${{ github.ref_name }}" --generate-notes
+          .\scripts\Publish-Release.ps1 -Tag $env:RELEASE_TAG
 
-      - name: Upload test artifact
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+      - name: Upload release preview
         uses: actions/upload-artifact@v7
         with:
-          name: QuickText-test-build
-          path: dist/*
-          retention-days: 3
+          name: QuickText-release-${{ github.run_id }}
+          path: publish/release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  draft:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: QuickText-release-${{ github.run_id }}
+          path: release
+      - name: Create draft for final review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create $env:RELEASE_TAG `
+            .\release\QuickText.exe .\release\QuickText-needs-dotnet.exe `
+            .\release\LICENSE .\release\THIRD-PARTY-NOTICES.md .\release\SHA256SUMS.txt `
+            --verify-tag --draft --title "QuickText $env:RELEASE_TAG" `
+            --notes-file .\release\RELEASE_NOTES.md
+          if ($LASTEXITCODE -ne 0) { throw 'Draft creation failed. Existing releases are never overwritten.' }
